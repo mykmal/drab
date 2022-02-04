@@ -11,7 +11,7 @@
 #SBATCH -o %j.out
 #SBATCH -e %j.err
 
-export DREX="/path/to/drex"
+DREX="/path/to/drex"
 
 cd ${DREX}
 
