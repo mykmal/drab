@@ -130,7 +130,7 @@ genotypes <- BEDMatrix::BEDMatrix("genotypes/dosages_processed", simple_names = 
 # Get names of all genes for which we have eQTLs in both tissues
 genes_A <- read.table(file = paste("weights/", tissue_A, "/gene_list.txt", sep = ""))
 genes_B <- read.table(file = paste("weights/", tissue_B, "/gene_list.txt", sep = ""))
-genes <- intersection(genes_A, genes_B)
+genes <- intersect(genes_A, genes_B)
 
 # Pre-populate a data frame to store p-values for all gene/test pairs
 results <- data.frame(matrix(data = NA, nrow = length(genes), ncol = 5))
