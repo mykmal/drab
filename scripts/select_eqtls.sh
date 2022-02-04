@@ -11,15 +11,15 @@
 #SBATCH -o %A_%a.out
 #SBATCH -e %A_%a.err
 
-export DREX="/path/to/drex"
+DREX="/path/to/drex"
+
+TISSUE=Muscle_Skeletal
 
 module load R/4.1.0
 
 export PATH=${PATH}:${DREX}/plink
 
 cd ${DREX}
-
-TISSUE=Muscle_Skeletal
 
 mkdir -p weights/${TISSUE}
 
@@ -56,7 +56,7 @@ FINAL_OUT="weights/${TISSUE}/${TISSUE}.${ID}"
 Rscript ./fusion_twas/FUSION.compute_weights.R \
 --bfile ${OUT} --tmp ${OUT}.tmp --out ${FINAL_OUT} --PATH_gcta fusion_twas/gcta_nr_robust --models enet --covar expression_covariates/${TISSUE}.v8.EUR.covariates.plink.txt --hsq_p 1.0 --verbose 1
 
-echo ${ID} >> "weights/${TISSUE}/gene_list.txt
+echo ${ID} >> "weights/${TISSUE}/gene_list.txt"
 
 rm -f ${OUT}.*
 
