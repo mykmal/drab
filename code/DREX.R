@@ -51,42 +51,35 @@ GetLogLik <- function(features_1, features_2, expression)
   # Fit a regression model with the SNPs in dosages_2 as features and expression as the response
   model_2 <- lm(X ~ ., data = cbind(expression, dosages_2))
   
-  # Compute a vector of individual log-likelihoods for model_1
-  summary_1 <- summary(model_1)
-  res_1 <- summary_1$residuals
-  sigma_1 <- summary_1$sigma
-  loglik_1 <- log(dnorm(res_1, sd = sigma_1))
+  # Get numbers of observations
+  n_1 <- insight::n_obs(model_1)
+  n_2 <- insight::n_obs(model_2)
   
-  # Compute a vector of individual log-likelihoods for model_2
-  summary_2 <- summary(model_2)
-  res_2 <- summary_2$residuals
-  sigma_2 <- summary_2$sigma
-  loglik_2 <- log(dnorm(res_2, sd = sigma_2))
-  
-  if (res_1 != res_2) {
-    cat(
-      "WARNING: models for",
-      current_gene,
-      "have nonequal numbers of individuals. Skipping gene.\n"
-    )
+  # If the two models were trained on different numbers of individuals, something went wrong
+  if (n_1 != n_2) {
+    cat("WARNING: models for", current_gene, "have nonequal numbers of individuals. Skipping gene.\n")
     return(list(
       n = 0,
       coef_1 = 0,
       coef_2 = 0,
       loglik_1 = 0,
-      loglik_2 = 0
-    ))
+      loglik_2 = 0))
   }
   
-  return(
-    list(
-      n = length(res_1),
-      coef_1 = length(coef(model_1)),
-      coef_2 = length(coef(model_2)),
-      loglik_1 = loglik_1,
-      loglik_2 = loglik_2
-    )
-  )
+  # Get numbers of parameters
+  coef_1 <- insight::n_parameters(model_1)
+  coef_2 <- insight::n_parameters(model_2)
+  
+  # Get individual log-likelihoods
+  loglik_1 <- attributes(insight::get_loglikelihood(model_1))$per_obs
+  loglik_2 <- attributes(insight::get_loglikelihood(model_2))$per_obs
+  
+  return(list(
+    n = n_1,
+    coef_1 = coef_1,
+    coef_2 = coef_2,
+    loglik_1 = loglik_1,
+    loglik_2 = loglik_2))
 }
 
 # Calculate the likelihood-ratio test p-value
@@ -95,10 +88,9 @@ LRT <- function(x)
   # AIC is used instead of the likelihood for model 1
   num <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2)
   denom <-
-    sqrt((1 / x$n) * sum((x$loglik_1 - x$loglik_2) ** 2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2)) **
-           2)
+    sqrt((1 / x$n) * sum((x$loglik_1 - x$loglik_2)**2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2))**2)
   stat <- num / (sqrt(x$n) * denom)
-  p <- format.pval(2 * pnorm(-abs(stat)))
+  p <- 2 * pnorm(-abs(stat))
   
   return(p)
 }
@@ -110,7 +102,7 @@ DFT <- function(x)
   d <- x$loglik_1 - (x$coef_1 / x$n) - x$loglik_2
   stat <- sum(d > 0)
   b <- min(stat, x$n - stat)
-  p <- format.pval(2 * pbinom(b, x$n, 0.5))
+  p <- 2 * pbinom(b, x$n, 0.5)
   
   return(p)
 }
