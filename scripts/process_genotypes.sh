@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64g
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --tmp=100g
 #SBATCH -p amdlarge,amd512,amd2tb,ram256g,ram1t
 #SBATCH --mail-type=ALL
