@@ -56,10 +56,10 @@ FINAL_OUT="weights/${TISSUE}/${TISSUE}.${ID}"
 Rscript ./fusion_twas/FUSION.compute_weights.R \
 --bfile ${OUT} --tmp ${OUT}.tmp --out ${FINAL_OUT} --PATH_gcta fusion_twas/gcta_nr_robust --models enet --covar expression_covariates/${TISSUE}.v8.EUR.covariates.plink.txt --hsq_p 1.0 --verbose 1
 
-echo ${ID} >> "weights/${TISSUE}/gene_list.txt"
-
 rm -f ${OUT}.*
 
 done
 
 rm -fr temp/${TISSUE}.${BATCH}
+
+ls weights/${TISSUE} | tr ' ' '\n' | awk -F. '{print $2 "." $3}' > weights/${TISSUE}/gene_list.txt
