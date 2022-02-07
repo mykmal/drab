@@ -1,6 +1,6 @@
 # DREX: Differential Regulation of EXpression
 
-This guide walks you through performing the drex workflow on European subjects data from the Genotype-Tissue Expression Project (GTEx) v8 release, as described in our paper. If using drex on your own data, make sure that it is formatted analogously to the GTEx data.
+This guide walks you through performing the drex workflow on European subjects data from the Genotype-Tissue Expression (GTEx) Project v8 release, as described in our paper. If using drex on your own data, make sure that it is formatted analogously to the GTEx data.
 
 **Note:** The drex workflow is designed to be run on a linux HPC system and all provided commands are for bash (with the exception of a few R commands, which are prefaced by the `>` symbol).
 
@@ -49,22 +49,26 @@ Some data sets are available from the publicly-accessible [GTEx portal](https://
 
 After obtaining access to the GTEx data in dbGaP (accession phs000424.v8.p2), follow the dbGaP documentation to download the following files:
 
-* `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`. Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to the `drex/genotypes` folder. (The other files in the tar are not needed.)
-* `phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz`. Uncompress this file and move it to the `drex/reference` folder.
+* `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`  
+Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to the `drex/genotypes` folder. (The other files in the tar are not needed.)
+* `phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz`  
+Uncompress this file and move it to the `drex/reference` folder.
 
 From the **GTEx Analysis V8 (dbGaP Accession phs000424.v8.p2)** section of https://www.gtexportal.org/home/datasets, download the following files:
 
-* `GTEx_Analysis_v8_eQTL_EUR.tar` (under the sub-heading "Single-Tissue cis-QTL Data"). Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to the main `drex` folder. (The other folder in the tar is not needed.)
-* `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (under the sub-heading "Reference"). Uncompress this file and move it to the `drex/reference` folder.
+* `GTEx_Analysis_v8_eQTL_EUR.tar` (under the sub-heading "Single-Tissue cis-QTL Data")  
+Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to the main `drex` folder. (The other folder in the tar is not needed.)
+* `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (under the sub-heading "Reference")  
+Uncompress this file and move it to the `drex/reference` folder.
 * `gencode.v26.GRCh38.genes.gtf` (under the sub-heading "Reference"). Move this file to the `drex/reference` folder.
 
 ## Prepare data
 
 Run the following shell scripts on your HPC system in any order:
 
-* `process_covariates.sh`. This will reformat the GTEx covariate data into the proper format for drex.
-* `prepare_annotation.sh`. This will create files in `drex/reference` with the name, chromosome, and location of each of the genes that drex will run on.
-* `process_genotypes.sh`. This will perform quality control on the GTEx genotype data, as described in our paper.
+* `process_covariates.sh` -- this will reformat the GTEx covariate data into the proper format for drex.
+* `prepare_annotation.sh` -- this will create files in `drex/reference` with the name, chromosome, and location of each of the genes that drex will run on.
+* `process_genotypes.sh` -- this will perform quality control on the GTEx genotype data, as described in our paper.
 
 Optionally, run `split_data.sh` to randomly split the expression and covariate data for any tissue (specified in the first line of `code/SplitData.R`) into 1/2, 1/2 and 1/3, 2/3 partitions. You can then specify the partitions as separate "tissues" in drex to perform a null test.
 
