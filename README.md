@@ -60,7 +60,8 @@ From the **GTEx Analysis V8 (dbGaP Accession phs000424.v8.p2)** section of https
 Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to the main `drex` folder. (The other folder in the tar is not needed.)
 * `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (under the sub-heading "Reference")  
 Uncompress this file and move it to the `drex/reference` folder.
-* `gencode.v26.GRCh38.genes.gtf` (under the sub-heading "Reference"). Move this file to the `drex/reference` folder.
+* `gencode.v26.GRCh38.genes.gtf` (under the sub-heading "Reference")  
+Move this file to the `drex/reference` folder.
 
 ## Prepare data
 
@@ -82,11 +83,16 @@ As described in our paper, the drex method consists of three stages:
 
 ### Stage 1
 
-The first stage is performed by running `select_eqtls.sh`. This shell script runs on a per-tissue basis, so be sure to specify your desired tissue in the `TISSUE` environmental variable at the beginning of the file prior to running. Note that this script will only run as a batch array job. If using SLURM, submit it with the command
+The first stage is performed by running `select_eqtls.sh`. This shell script runs on a per-tissue basis, so be sure to specify your desired tissue in the `TISSUE` environmental variable at the beginning of the script file prior to running. Note that this script will only run as a batch array job. If using SLURM, submit it with the command
 ```
-sbatch --array=1-13 select_eqtls.sh
+sbatch --array=1-13 scripts/select_eqtls.sh
 ```
-The second number in the array flag specifies the upper bound for the number of genes (in thousands) that you want to select eQTLs for. For example, to run drex on protein-coding genes in GTEx v8 you need to specify `--array=1-13` because there are 12,438 protein-coding genes in the GTEx gene model. To run drex on all genes in GTEx v8, you should instead specify `--array=1-36` because the GTEx data has annotations for 35,036 genes in total. For the latter case you will also need to change `cat reference/pc_gene_annotation.txt` to `cat reference/gene_annotation.txt` in line 30 of the script.
+and after it finishes run
+```
+ls weights/<TISSUE> | tr ' ' '\n' | awk -F. '{print $2 "." $3}' > weights/<TISSUE>/gene_list.txt
+```
+where `<TISSUE>` should be replaced with the name of the tissue for which you are selecting eQTLs.  
+The second number in the array flag above specifies the upper bound for the number of genes (in thousands) that you want to select eQTLs for. For example, to run drex on protein-coding genes in GTEx v8 you need to specify `--array=1-13` because there are 12,438 protein-coding genes in the GTEx gene model. To run drex on all genes in GTEx v8, you should instead specify `--array=1-36` because the GTEx data has annotations for 35,036 genes in total. For the latter case you will also need to change `cat reference/pc_gene_annotation.txt` to `cat reference/gene_annotation.txt` in line 30 of the script.
 
 ### Stage 2 and stage 3
 

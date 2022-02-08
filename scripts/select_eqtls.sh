@@ -61,5 +61,3 @@ rm -f ${OUT}.*
 done
 
 rm -fr temp/${TISSUE}.${BATCH}
-
-ls weights/${TISSUE} | tr ' ' '\n' | awk -F. '{print $2 "." $3}' > weights/${TISSUE}/gene_list.txt
