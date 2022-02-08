@@ -8,8 +8,8 @@
 #SBATCH -p amdlarge,amd512,amd2tb,ram256g,ram1t
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=scientist@university.edu
-#SBATCH -o %A_%a.out
-#SBATCH -e %A_%a.err
+#SBATCH -o logs/%A_%a.out
+#SBATCH -e logs/%A_%a.err
 
 DREX="/path/to/drex"
 
