@@ -6,12 +6,13 @@
 GetLogLik <- function(features_1, features_2, expression)
 {
   # Subset genotype and expression data to the shared list of individuals
-  individuals <- intersect(rownames(expression), rownames(genotypes))
-  expression <- expression[individuals, ]
+  individuals <- intersect(rownames(genotypes), colnames(expression))
+  expression <- subset(expression, select = individuals)
   dosages <- genotypes[individuals, ]
   
   # Subset expression data for the current gene
-  expression <- subset(expression, select = current_gene)
+  expression <- expression[current_gene, ]
+  expression <- t(expression)
   colnames(expression) <- "X"
   
   # Get genotype data for the model SNPs
@@ -120,9 +121,13 @@ if (length(args) != 2) {
 tissue_A <- args[1]
 tissue_B <- args[2]
 
-# Read expression data
-expression_A <- read.delim(paste("expression_matrices/", tissue_A, ".v8.EUR.normalized_expression.bed.gz", sep = ""))
-expression_B <- read.delim(paste("expression_matrices/", tissue_B, ".v8.EUR.normalized_expression.bed.gz", sep = ""))
+# Read and reformat expression data
+expression_A <- read.delim(paste("expression_matrices/", tissue_A, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
+                           header = TRUE, row.names = "gene_id", check.names = FALSE)
+expression_B <- read.delim(paste("expression_matrices/", tissue_B, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
+                           header = TRUE, row.names = "gene_id", check.names = FALSE)
+expression_A <- subset(expression_A, select = -c(1, 2, 3))
+expression_B <- subset(expression_B, select = -c(1, 2, 3))
 
 # Read genotype data
 genotypes <- BEDMatrix::BEDMatrix("genotypes/dosages_processed", simple_names = TRUE)
