@@ -10,7 +10,7 @@ This guide walks you through performing the drex workflow on European subjects d
 ```
 git clone https://github.com/MykMal/drex.git
 cd drex
-mkdir genotypes output plink reference temp weights
+mkdir genotypes logs output plink reference temp weights
 ```
 * Launch R and install the packages BEDMatrix, glmnet, insight, optparse, and RcppEigen. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, glmnet 4.1.3, insight 0.15.0, optparse 1.7.1, and RcppEigen 0.3.3.9.1.
 ```
@@ -89,7 +89,7 @@ sbatch --array=1-13 scripts/select_eqtls.sh
 ```
 and after it finishes run
 ```
-ls weights/<TISSUE> | tr ' ' '\n' | awk -F. '{print $2 "." $3}' > weights/<TISSUE>/gene_list.txt
+ls weights/<TISSUE> | tr ' ' '\n' | awk -F. '{print $2 "." $3}' > gene_list.txt && mv gene_list.txt weights/<TISSSUE>
 ```
 where `<TISSUE>` should be replaced with the name of the tissue for which you are selecting eQTLs.  
 The second number in the array flag above specifies the upper bound for the number of genes (in thousands) that you want to select eQTLs for. For example, to run drex on protein-coding genes in GTEx v8 you need to specify `--array=1-13` because there are 12,438 protein-coding genes in the GTEx gene model. To run drex on all genes in GTEx v8, you should instead specify `--array=1-36` because the GTEx data has annotations for 35,036 genes in total. For the latter case you will also need to change `cat reference/pc_gene_annotation.txt` to `cat reference/gene_annotation.txt` in line 30 of the script.
