@@ -5,19 +5,18 @@
 # Compute vectors of individual log-likelihoods for regression models with SNPs from snps_A, snps_B as features
 GetLogLik <- function(features_1, features_2, expression)
 {
-  # Subset genotype and expression data to the shared list of individuals
+  # Find individuals for which we have data in both tissues
   individuals <- intersect(rownames(genotypes), colnames(expression))
-  expression <- subset(expression, select = individuals)
-  dosages <- genotypes[individuals, ]
   
-  # Subset expression data for the current gene
+  # Subset expression data for the shared individuals and the current gene
+  expression <- subset(expression, select = individuals)
   expression <- expression[current_gene, ]
   expression <- t(expression)
   colnames(expression) <- "X"
   
-  # Get genotype data for the model SNPs
-  dosages_1 <- data.frame(dosages[, features_1])
-  dosages_2 <- data.frame(dosages[, features_2])
+  # Get genotype data for the shared individuals and the model SNPs
+  dosages_1 <- data.frame(genotypes[individuals, features_1])
+  dosages_2 <- data.frame(genotypes[individuals, features_2])
   
   # Remove SNPs for which standard deviation is zero
   dosages_1 <- Filter(sd, dosages_1)
@@ -25,7 +24,7 @@ GetLogLik <- function(features_1, features_2, expression)
   
   # If no SNPs are left by now, we can't proceed further
   if ((dim(dosages_1)[2] == 0) | (dim(dosages_2)[2] == 0)) {
-    cat("WARNING: no eQTLs found for", current_gene, ". Skipping gene.\n")
+    cat("WARNING: no eQTLs found for ", current_gene, ". Skipping gene.\n", sep = "")
     return(list(
       n = 0,
       coef_1 = 0,
@@ -132,7 +131,7 @@ expression_B <- subset(expression_B, select = -c(1, 2, 3))
 # Read genotype data
 genotypes <- BEDMatrix::BEDMatrix("genotypes/dosages_processed", simple_names = TRUE)
 
-# Get names of all genes for which we have eQTLs in both tissues
+# Get names of all genes in both tissues
 genes_A <- read.table(file = paste("weights/", tissue_A, "/gene_list.txt", sep = ""))
 genes_B <- read.table(file = paste("weights/", tissue_B, "/gene_list.txt", sep = ""))
 genes <- intersect(genes_A$V1, genes_B$V1)
