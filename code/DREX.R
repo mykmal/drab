@@ -127,8 +127,8 @@ tissue_B <- args[5]
 plink_path_B <- path.expand(args[6])
 batch <- args[7]
 
-covar_path_A <- expand.path(paste("expression_covariates/", tissue_A, ".v8.EUR.covariates.plink.txt", sep = ""))
-covar_path_B <- expand.path(paste("expression_covariates/", tissue_B, ".v8.EUR.covariates.plink.txt", sep = ""))
+covar_path_A <- path.expand(paste("expression_covariates/", tissue_A, ".v8.EUR.covariates.plink.txt", sep = ""))
+covar_path_B <- path.expand(paste("expression_covariates/", tissue_B, ".v8.EUR.covariates.plink.txt", sep = ""))
 
 # Check that required files exist
 files_A <- paste(plink_path_A, c(".bed", ".bim", ".fam"), sep = "")
