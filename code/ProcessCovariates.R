@@ -20,3 +20,4 @@ for (tissue in tissues) {
         processed_covar_path <- paste("expression_covariates/", tissue, ".v8.EUR.covariates.plink.txt", sep = "")
         write.table(covariates, file = processed_covar_path, quote = FALSE, sep = "\t", row.names = FALSE)
 }
+

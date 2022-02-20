@@ -1,4 +1,4 @@
-tissue <- "Whole_Blood"
+tissue <- commandArgs(trailingOnly = TRUE)[1]
 
 # Read list of individuals for the given tissue
 samples <- read.table(paste("expression_covariates/", tissue, ".v8.EUR.covariates.txt.HEADER", sep = ""))
@@ -47,3 +47,4 @@ write.table(samples_half1, file = paste("expression_covariates/", tissue, "_half
 write.table(samples_half2, file = paste("expression_covariates/", tissue, "_half2.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
 write.table(samples_third, file = paste("expression_covariates/", tissue, "_third.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
 write.table(samples_twothirds, file = paste("expression_covariates/", tissue, "_twothirds.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
+

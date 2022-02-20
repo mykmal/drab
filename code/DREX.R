@@ -2,36 +2,38 @@
 # INTERNAL FUNCTIONS
 ######################################################################
 
-# Compute vectors of individual log-likelihoods for regression models with SNPs from snps_A, snps_B as features
-GetLogLik <- function(features_1, features_2, expression)
+# Read plink bed/bim/fam files
+ReadPlink <- function(root)
 {
-  # Find individuals for which we have data in both tissues
-  individuals <- intersect(rownames(genotypes), colnames(expression))
+  # Set full paths to each of the plink-format files
+  bedfile <- paste(root, ".bed", sep = "")
+  famfile <- paste(root, ".fam", sep = "")
+  bimfile <- paste(root, ".bim", sep = "")
   
-  # Subset expression data for the shared individuals and the current gene
-  expression <- subset(expression, select = individuals)
-  expression <- expression[current_gene, ]
-  expression <- t(expression)
-  colnames(expression) <- "X"
+  # Import bed/bim/fam files
+  # Note that specifying n and p speeds up BEDMatrix
+  bim <- read.table(bimfile, header = FALSE, stringsAsFactors = FALSE)
+  fam <- read.table(famfile, header = FALSE, stringsAsFactors = FALSE)
+  bed <- BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim), simple_names = TRUE)
   
-  # Get genotype data for the shared individuals and the model SNPs
-  dosages_1 <- data.frame(genotypes[individuals, features_1])
-  dosages_2 <- data.frame(genotypes[individuals, features_2])
+  return(list(bed, bim, fam))
+}
+
+# Select eQTLs via elastic net regularization
+ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
+{
+  enet_model <- glmnet::cv.glmnet(x = genos, y = pheno, alpha = alpha, nfold = 5, intercept = TRUE, standardize = FALSE)
+  eqtls <- rownames(coef(enet_model, s = "lambda.min"))[coef(enet_model, s = "lambda.min")[, 1] != 0]
   
-  # Remove SNPs for which standard deviation is zero
-  dosages_1 <- Filter(sd, dosages_1)
-  dosages_2 <- Filter(sd, dosages_2)
-  
-  # If no SNPs are left by now, we can't proceed further
-  if ((dim(dosages_1)[2] == 0) | (dim(dosages_2)[2] == 0)) {
-    cat("WARNING: no eQTLs found for ", current_gene, ". Skipping gene.\n", sep = "")
-    return(list(
-      n = 0,
-      coef_1 = 0,
-      coef_2 = 0,
-      loglik_1 = 0,
-      loglik_2 = 0))
-  }
+  return(eqtls[-1])
+}
+
+# Compute vectors of individual log-likelihoods for regression models with SNPs from features_1, features_2 and expression as the response
+GetLogLik <- function(features_1, genotypes_1, features_2, genotypes_2, expression)
+{
+  # Get dosages for the SNPs in features_1, features_2
+  dosages_1 <- genotypes_1[, features_1]
+  dosages_2 <- genotypes_2[, features_2]
   
   # If multiple SNPs are present, remove the highly correlated ones
   if (dim(dosages_1)[2] > 1) {
@@ -46,10 +48,10 @@ GetLogLik <- function(features_1, features_2, expression)
   }
   
   # Fit a regression model with the SNPs in dosages_1 as features and expression as the response
-  model_1 <- lm(X ~ ., data = cbind(expression, dosages_1))
+  model_1 <- lm(expression ~ dosages_1)
   
   # Fit a regression model with the SNPs in dosages_2 as features and expression as the response
-  model_2 <- lm(X ~ ., data = cbind(expression, dosages_2))
+  model_2 <- lm(expression ~ dosages_2)
   
   # Get numbers of observations
   n_1 <- insight::n_obs(model_1)
@@ -57,7 +59,7 @@ GetLogLik <- function(features_1, features_2, expression)
   
   # If the two models were trained on different numbers of individuals, something went wrong
   if (n_1 != n_2) {
-    cat("WARNING: models for", current_gene, "have nonequal numbers of individuals. Skipping gene.\n")
+    cat("WARNING: prediction models have nonequal numbers of individuals. Skipping gene.\n")
     return(list(
       n = 0,
       coef_1 = 0,
@@ -85,11 +87,10 @@ GetLogLik <- function(features_1, features_2, expression)
 # Calculate the likelihood-ratio test p-value
 LRT <- function(x)
 {
-  # AIC is used instead of the likelihood for model 1
-  num <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2)
-  denom <-
-    sqrt((1 / x$n) * sum((x$loglik_1 - x$loglik_2)**2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2))**2)
-  stat <- num / (sqrt(x$n) * denom)
+  # AIC-based correction is applied to the model 1 likelihood
+  numerator <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2)
+  variance <- (1 / x$n) * sum((x$loglik_1 - x$loglik_2)**2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2))**2
+  statistic <- numerator / sqrt(x$n * variance)
   p <- 2 * pnorm(-abs(stat))
   
   return(p)
@@ -98,11 +99,11 @@ LRT <- function(x)
 # Calculate the distribution-free test p-value
 DFT <- function(x)
 {
-  # AIC-based correction is applied to model 1
+  # AIC-based correction is applied to the model 1 likelihood
   d <- x$loglik_1 - (x$coef_1 / x$n) - x$loglik_2
-  stat <- sum(d > 0)
-  b <- min(stat, x$n - stat)
-  p <- 2 * pbinom(b, x$n, 0.5)
+  b <- sum(d > 0)
+  statistic <- min(b, x$n - b)
+  p <- 2 * pbinom(statistic, x$n, 0.5)
   
   return(p)
 }
@@ -111,78 +112,138 @@ DFT <- function(x)
 # MAIN PROGRAM
 ######################################################################
 
-# Check that both arguments are supplied
-args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 2) {
-  stop("Error: please specify two tissue names", call. = FALSE)
+# Check that all required arguments are supplied
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 7) {
+  cat("ERROR: missing arguments. Specify (in the following order) a gene name, the gene's Ensembl ID, the first tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the first tissue, the second tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the second tissue, and a batch number.\n", file = stderr())
+  q()
 }
 
-tissue_A <- args[1]
-tissue_B <- args[2]
+gene <- args[1]
+gene_id <- args[2]
+tissue_A <- args[3]
+plink_path_A <- path.expand(args[4])
+tissue_B <- args[5]
+plink_path_B <- path.expand(args[6])
+batch <- args[7]
 
-# Read and reformat expression data
-expression_A <- read.delim(paste("expression_matrices/", tissue_A, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
-                           header = TRUE, row.names = "gene_id", check.names = FALSE)
-expression_B <- read.delim(paste("expression_matrices/", tissue_B, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
-                           header = TRUE, row.names = "gene_id", check.names = FALSE)
-expression_A <- subset(expression_A, select = -c(1, 2, 3))
-expression_B <- subset(expression_B, select = -c(1, 2, 3))
+covar_path_A <- expand.path(paste("expression_covariates/", tissue_A, ".v8.EUR.covariates.plink.txt", sep = ""))
+covar_path_B <- expand.path(paste("expression_covariates/", tissue_B, ".v8.EUR.covariates.plink.txt", sep = ""))
 
-# Read genotype data
-genotypes <- BEDMatrix::BEDMatrix("genotypes/dosages_processed", simple_names = TRUE)
+# Check that required files exist
+files_A <- paste(plink_path_A, c(".bed", ".bim", ".fam"), sep = "")
+files_B <- paste(plink_path_B, c(".bed", ".bim", ".fam"), sep = "")
+files <- c(files_A, files_B, covar_path_A, covar_path_B)
 
-# Get names of all genes in both tissues
-genes_A <- read.table(file = paste("weights/", tissue_A, "/gene_list.txt", sep = ""))
-genes_B <- read.table(file = paste("weights/", tissue_B, "/gene_list.txt", sep = ""))
-genes <- intersect(genes_A$V1, genes_B$V1)
-
-# Pre-populate a data frame to store p-values for all gene/test pairs
-results <- data.frame(matrix(data = NA, nrow = length(genes), ncol = 5))
-colnames(results) <- c(
-    "gene_id",
-    paste(tissue_A, "_lr_pval", sep = ""),
-    paste(tissue_B, "_lr_pval", sep = ""),
-    paste(tissue_A, "_df_pval", sep = ""),
-    paste(tissue_B, "_df_pval", sep = ""))
-results$gene_id <- genes
-
-# Loop through all genes
-for (current_gene in results$gene_id) {
-  
-  # Read tissue-specific eQTLs for the gene
-  load(paste("weights/", tissue_A, "/", tissue_A, ".", current_gene, ".wgt.RDat", sep = ""))
-  snps_A <- rownames(wgt.matrix[which(wgt.matrix[, "enet"] != 0), ])
-  load(paste("weights/", tissue_B, "/", tissue_B, ".", current_gene, ".wgt.RDat", sep = ""))
-  snps_B <- rownames(wgt.matrix[which(wgt.matrix[, "enet"] != 0), ])
-  
-  # Get individual log-likelihoods with tissue A as the baseline
-  likelihoods_A <- GetLogLik(snps_A, snps_B, expression_A)
-  
-  # Get individual log-likelihoods with tissue B as the baseline
-  likelihoods_B <- GetLogLik(snps_B, snps_A, expression_B)
-  
-  # Calculate p-values for each gene/test pair
-  if (likelihoods_A$n == 0) {
-    lr_pval_A <- "NA"
-    df_pval_A <- "NA"
-  } else {
-    lr_pval_A <- LRT(likelihoods_A)
-    df_pval_A <- DFT(likelihoods_A)
+for (f in files) {
+  if (!file.exists(f)) {
+    cat("ERROR:", f , "input file does not exist\n", file = stderr())
+    q()
   }
-  if (likelihoods_B$n == 0) {
-    lr_pval_B <- "NA"
-    df_pval_B <- "NA"
-  } else {
-    lr_pval_B <- LRT(likelihoods_B)
-    df_pval_B <- DFT(likelihoods_B)
-  }
-  
-  results[results$gene_id == current_gene, c(2, 3, 4, 5)] = cbind(lr_pval_A, lr_pval_B, df_pval_A, df_pval_B)
 }
 
-# Write all test results to a file
-write.table(results,
-  file = paste("output/", tissue_A, "_", tissue_B, ".txt", sep = ""),
-  quote = FALSE,
-  sep = "\t",
-  row.names = FALSE)
+# Load genotype and expression data
+data_A <- ReadPlink(plink_path_A)
+data_B <- ReadPlink(plink_path_B)
+genotypes_A <- data_A$bed
+genotypes_B <- data_B$bed
+expression_A <- data_A$fam[, c(2, 6)]
+expression_B <- data_B$fam[, c(2, 6)]
+
+# Load covariates
+covar_A <- read.table(covar_path_A, header = TRUE, stringsAsFactors = FALSE)[, -1]
+covar_B <- read.table(covar_path_B, header = TRUE, stringsAsFactors = FALSE)[, -1]
+cat("Loaded", ncol(covar_A)-2, "covariates for", tissue_A, "and", ncol(covar_B)-2, "covariates for", tissue_B, "\n")
+
+# Find individuals for which we have both covariate and genotype/expression data
+individuals_A <- intersect(expression_A[, 1], covar_A[, 1])
+individuals_B <- intersect(expression_B[, 1], covar_B[, 1])
+
+# Find individuals for which we have data in both tissues
+individuals <- intersect(individuals_A, individuals_B)
+
+# Subset genotype, expression, and covariate data to the shared list of individuals
+genotypes_A <- genotypes_A[individuals, ]
+genotypes_B <- genotypes_B[individuals, ]
+expression_A <- expression_A[expression_A[, 1] %in% individuals, ]
+expression_B <- expression_B[expression_B[, 1] %in% individuals, ]
+covar_A <- covar_A[covar_A[, 1] %in% individuals, ]
+covar_B <- covar_B[covar_B[, 1] %in% individuals, ]
+
+# Adjust expression values for covariates
+expression_covar_A <- summary(lm(expression_A[, -1] ~ covar_A[, -1]))
+cat(expression_covar_A$r.squared, "variance in", tissue_A, "expression explained by covariates\n")
+expression_covar_B <- summary(lm(expression_B[, -1] ~ covar_B[, -1]))
+cat(expression_covar_B$r.squared, "variance in", tissue_B, "expression explained by covariates\n")
+
+# Scale and center the genotypes and adjusted expression values
+genotypes_A <- scale(genotypes_A)
+genotypes_B <- scale(genotypes_B)
+expression_A[, 2] <- scale(expression_covar_A$residuals)
+expression_B[, 2] <- scale(expression_covar_B$residuals)
+
+# Check if any genotypes are NA
+na_snps_A <- apply(!is.finite(genotypes_A), 2, sum)
+if (sum(na_snps_A) != 0) {
+  cat("WARNING:", sum(na_snps_A != 0), "SNPs could not be scaled and were removed in", tissue_A, "\n", file = stderr())
+  genotypes_A <- genotypes_A[, na_snps_A = 0]
+}
+na_snps_B <- apply(!is.finite(genotypes_B), 2, sum)
+if (sum(na_snps_B) != 0) {
+  cat("WARNING:", sum(na_snps_B != 0), "SNPs could not be scaled and were removed in", tissue_B, "\n", file = stderr())
+  genotypes_B <- genotypes_B[, na_snps_B = 0]
+}
+
+# Adjust genotypes for covariates
+for (i in seq_len(ncol(genotypes_A))) {
+  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ covar_A[, -1]))$residuals
+}
+for (i in seq_len(ncol(genotypes_B))) {
+  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ covar_B[, -1]))$residuals
+}
+
+# Scale and center the genotypes again
+genotypes_A <- scale(genotypes_A)
+genotypes_B <- scale(genotypes_B)
+
+# Remove monomorphic SNPs
+sds_A <- apply(genotypes_A, 2, sd)
+keep_A <- (sds_A != 0) & (!is.na(sds_A))
+genotypes_A <- genotypes_A[, keep_A]
+sds_B <- apply(genotypes_B, 2, sd)
+keep_B <- (sds_B != 0) & (!is.na(sds_B))
+genotypes_B <- genotypes_B[, keep_B]
+
+cat(tissue_A, ": ", nrow(expression_A), " individuals with expression data, ", nrow(genotypes_A), " individuals with genotype data, and ", ncol(genotypes_A), " cis-SNPs\n", sep = "")
+cat(tissue_B, ": ", nrow(expression_B), " individuals with expression data, ", nrow(genotypes_B), " individuals with genotype data, and ", ncol(genotypes_B), " cis-SNPs\n", sep = "")
+
+# Select eQTLs for each tissue
+eqtls_A <- ElasticNetSelection(genotypes_A, expression_A[, 2])
+eqtls_B <- ElasticNetSelection(genotypes_B, expression_B[, 2])
+
+# Get individual log-likelihoods with tissue A as the baseline
+likelihoods_A <- GetLogLik(eqtls_A, genotypes_A, eqtls_B, genotypes_B, expression_A[, 2])
+
+# Get individual log-likelihoods with tissue B as the baseline
+likelihoods_B <- GetLogLik(eqtls_B, genotypes_B, eqtls_A, genotypes_A, expression_B[, 2])
+
+# Calculate p-values for each pair of baseline tissue and test
+if (likelihoods_A$n == 0) {
+  lr_pval_A <- "NA"
+  df_pval_A <- "NA"
+} else {
+  lr_pval_A <- LRT(likelihoods_A)
+  df_pval_A <- DFT(likelihoods_A)
+}
+if (likelihoods_B$n == 0) {
+  lr_pval_B <- "NA"
+  df_pval_B <- "NA"
+} else {
+  lr_pval_B <- LRT(likelihoods_B)
+  df_pval_B <- DFT(likelihoods_B)
+}
+
+# Append the test results to the working file
+results <- paste(gene, gene_id, lr_pval_A, lr_pval_B, df_pval_A, df_pval_B, sep = "\t")
+cat(results, file = paste("temp/", tissue_A, "_", tissue_B, "_", batch, sep = ""), append = TRUE, sep = "\n")
+

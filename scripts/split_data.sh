@@ -13,10 +13,13 @@
 
 DREX="/path/to/drex"
 
+TISSUE="Whole_Blood"
+
 module load R/4.1.0
 
 cd ${DREX}
 
-Rscript code/SplitData.R
+Rscript code/SplitData.R ${TISSUE}
 
 gzip expression_matrices/*.bed
+
