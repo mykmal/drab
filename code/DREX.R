@@ -39,8 +39,21 @@ ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
 GetLogLik <- function(features_1, features_2, genotypes, expression)
 {
   # Get dosages for the SNPs in features_1, features_2
+  features_1 <- intersect(features_1, colnames(genotypes))
+  features_2 <- intersect(features_2, colnames(genotypes))
   dosages_1 <- genotypes[, features_1]
   dosages_2 <- genotypes[, features_2]
+  
+  # If no eQTLs exist, we can't proceed further
+  if ((length(features_1) == 0) | (length(features_2) == 0)) {
+    cat("WARNING: no eQTLs selected. Skipping gene.\n")
+    return(list(
+      n = 0,
+      coef_1 = 0,
+      coef_2 = 0,
+      loglik_1 = 0,
+      loglik_2 = 0))
+  }
   
   # If multiple SNPs are present, remove the highly correlated ones
   if (dim(dosages_1)[2] > 1) {
@@ -220,12 +233,15 @@ sds_B <- apply(genotypes_B, 2, sd)
 keep_B <- (sds_B != 0) & (!is.na(sds_B))
 genotypes_B <- genotypes_B[, keep_B]
 
-cat(tissue_A, ": ", nrow(expression_A), " individuals with expression data, ", nrow(genotypes_A), " individuals with genotype data, and ", ncol(genotypes_A), " cis-SNPs\n", sep = "")
-cat(tissue_B, ": ", nrow(expression_B), " individuals with expression data, ", nrow(genotypes_B), " individuals with genotype data, and ", ncol(genotypes_B), " cis-SNPs\n", sep = "")
+cat(tissue_A, ": ", nrow(expression_A), " individuals and ", ncol(genotypes_A), " cis-SNPs\n", sep = "")
+cat(tissue_B, ": ", nrow(expression_B), " individuals and ", ncol(genotypes_B), " cis-SNPs\n", sep = "")
 
 # Select eQTLs for each tissue
 eqtls_A <- ElasticNetSelection(genotypes_A, expression_A[, 2])
 eqtls_B <- ElasticNetSelection(genotypes_B, expression_B[, 2])
+
+cat(tissue_A, ": ", length(eqtls_A), " cis-eQTLs selected\n", sep = "")
+cat(tissue_B, ": ", length(eqtls_B), " cis-eQTLs selected\n", sep = "")
 
 # Get individual log-likelihoods with tissue A as the baseline
 likelihoods_A <- GetLogLik(eqtls_A, eqtls_B, genotypes_A, expression_A[, 2])
