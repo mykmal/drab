@@ -68,10 +68,10 @@ GetLogLik <- function(features_1, features_2, genotypes, expression)
   }
   
   # Fit a regression model with the SNPs in dosages_1 as features and expression as the response
-  model_1 <- lm(expression ~ ., data = dosages_1)
+  model_1 <- lm(expression ~ ., data = as.data.frame(dosages_1))
   
   # Fit a regression model with the SNPs in dosages_2 as features and expression as the response
-  model_2 <- lm(expression ~ ., data = dosages_2)
+  model_2 <- lm(expression ~ ., data = as.data.frame(dosages_2))
   
   # Get numbers of observations
   n_1 <- insight::n_obs(model_1)
@@ -190,9 +190,9 @@ covar_A <- covar_A[covar_A[, 1] %in% individuals_A, ]
 covar_B <- covar_B[covar_B[, 1] %in% individuals_B, ]
 
 # Adjust expression values for covariates
-expression_covar_A <- summary(lm(expression_A[, 2] ~ ., data = covar_A[, -1]))
+expression_covar_A <- summary(lm(expression_A[, 2] ~ ., data = as.data.frame(covar_A[, -1])))
 cat(expression_covar_A$r.squared, "variance in", tissue_A, "expression explained by covariates\n")
-expression_covar_B <- summary(lm(expression_B[, 2] ~ ., data = covar_B[, -1]))
+expression_covar_B <- summary(lm(expression_B[, 2] ~ ., data = as.data.frame(covar_B[, -1])))
 cat(expression_covar_B$r.squared, "variance in", tissue_B, "expression explained by covariates\n")
 
 # Scale and center the genotypes and adjusted expression values
@@ -215,10 +215,10 @@ if (sum(na_snps_B) != 0) {
 
 # Adjust genotypes for covariates
 for (i in seq_len(ncol(genotypes_A))) {
-  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ ., data = covar_A[, -1]))$residuals
+  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ ., data = as.data.frame(covar_A[, -1]))$residuals
 }
 for (i in seq_len(ncol(genotypes_B))) {
-  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ ., data = covar_B[, -1]))$residuals
+  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ ., data = as.data.frame(covar_B[, -1]))$residuals
 }
 
 # Scale and center the genotypes again
