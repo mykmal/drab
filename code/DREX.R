@@ -215,10 +215,10 @@ if (sum(na_snps_B) != 0) {
 
 # Adjust genotypes for covariates
 for (i in seq_len(ncol(genotypes_A))) {
-  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ ., data = as.data.frame(covar_A[, -1]))$residuals
+  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ ., data = as.data.frame(covar_A[, -1])))$residuals
 }
 for (i in seq_len(ncol(genotypes_B))) {
-  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ ., data = as.data.frame(covar_B[, -1]))$residuals
+  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ ., data = as.data.frame(covar_B[, -1])))$residuals
 }
 
 # Scale and center the genotypes again
