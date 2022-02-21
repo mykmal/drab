@@ -107,11 +107,11 @@ GetLogLik <- function(features_1, features_2, genotypes, expression)
 # Calculate the likelihood-ratio test p-value
 LRT <- function(x)
 {
-  # AIC-based correction is applied to the model 1 likelihood
+  # AIC-based correction is applied to the model 1 log likelihood
   numerator <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2)
   variance <- (1 / x$n) * sum((x$loglik_1 - x$loglik_2)**2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2))**2
   statistic <- numerator / sqrt(x$n * variance)
-  p <- 2 * pnorm(-abs(stat))
+  p <- 2 * pnorm(-abs(statistic))
   
   return(p)
 }
@@ -119,7 +119,7 @@ LRT <- function(x)
 # Calculate the distribution-free test p-value
 DFT <- function(x)
 {
-  # AIC-based correction is applied to the model 1 likelihood
+  # AIC-based correction is applied to the model 1 log likelihood
   d <- x$loglik_1 - (x$coef_1 / x$n) - x$loglik_2
   b <- sum(d > 0)
   statistic <- min(b, x$n - b)
