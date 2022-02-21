@@ -191,13 +191,13 @@ expression_B[, 2] <- scale(expression_covar_B$residuals)
 # Check if any genotypes are NA
 na_snps_A <- apply(!is.finite(genotypes_A), 2, sum)
 if (sum(na_snps_A) != 0) {
-  cat("WARNING:", sum(na_snps_A != 0), "SNPs could not be scaled and were removed in", tissue_A, "\n", file = stderr())
-  genotypes_A <- genotypes_A[, na_snps_A = 0]
+  cat("WARNING:", sum(na_snps_A != 0), "SNPs could not be scaled and were zeroed out in", tissue_A, "\n", file = stderr())
+  genotypes_A[, na_snps_A != 0] <- 0
 }
 na_snps_B <- apply(!is.finite(genotypes_B), 2, sum)
 if (sum(na_snps_B) != 0) {
-  cat("WARNING:", sum(na_snps_B != 0), "SNPs could not be scaled and were removed in", tissue_B, "\n", file = stderr())
-  genotypes_B <- genotypes_B[, na_snps_B = 0]
+  cat("WARNING:", sum(na_snps_B != 0), "SNPs could not be scaled and were zeroed out in", tissue_B, "\n", file = stderr())
+  genotypes_B[, na_snps_B != 0] <- 0
 }
 
 # Adjust genotypes for covariates
