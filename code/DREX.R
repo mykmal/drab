@@ -35,12 +35,12 @@ ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
   return(eqtls[-1])
 }
 
-# Compute vectors of individual log-likelihoods for regression models with SNPs from features_1, features_2 and expression as the response
-GetLogLik <- function(features_1, genotypes_1, features_2, genotypes_2, expression)
+# Compute vectors of individual log-likelihoods for regression models with expression as the response and SNPs from features_1, features_2 as predictors
+GetLogLik <- function(features_1, features_2, genotypes, expression)
 {
   # Get dosages for the SNPs in features_1, features_2
-  dosages_1 <- genotypes_1[, features_1]
-  dosages_2 <- genotypes_2[, features_2]
+  dosages_1 <- genotypes[, features_1]
+  dosages_2 <- genotypes[, features_2]
   
   # If multiple SNPs are present, remove the highly correlated ones
   if (dim(dosages_1)[2] > 1) {
@@ -122,20 +122,22 @@ DFT <- function(x)
 # Check that all required arguments are supplied
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 7) {
-  cat("ERROR: missing arguments. Specify (in the following order) a gene name, the gene's Ensembl ID, the first tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the first tissue, the second tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the second tissue, and a batch number.\n", file = stderr())
+  cat(
+    "ERROR: missing arguments. Specify (in the following order) a gene name, the gene's Ensembl ID, the first tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the first tissue, the second tissue name, the path to plink binary files (minus .bed/.bim/.fam) for the second tissue, and a batch number.\n",
+    file = stderr())
   q()
 }
 
 gene <- args[1]
 gene_id <- args[2]
 tissue_A <- args[3]
-plink_path_A <- path.expand(args[4])
+plink_path_A <- args[4]
 tissue_B <- args[5]
-plink_path_B <- path.expand(args[6])
+plink_path_B <- args[6]
 batch <- args[7]
 
-covar_path_A <- path.expand(paste("expression_covariates/", tissue_A, ".v8.EUR.covariates.plink.txt", sep = ""))
-covar_path_B <- path.expand(paste("expression_covariates/", tissue_B, ".v8.EUR.covariates.plink.txt", sep = ""))
+covar_path_A <- paste("expression_covariates/", tissue_A, ".v8.EUR.covariates.plink.txt", sep = "")
+covar_path_B <- paste("expression_covariates/", tissue_B, ".v8.EUR.covariates.plink.txt", sep = "")
 
 # Check that required files exist
 files_A <- paste(plink_path_A, c(".bed", ".bim", ".fam"), sep = "")
@@ -166,16 +168,13 @@ cat("Loaded", ncol(covar_A)-1, "covariates for", tissue_A, "and", ncol(covar_B)-
 individuals_A <- intersect(expression_A[, 1], covar_A[, 1])
 individuals_B <- intersect(expression_B[, 1], covar_B[, 1])
 
-# Find individuals for which we have data in both tissues
-individuals <- intersect(individuals_A, individuals_B)
-
-# Subset genotype, expression, and covariate data to the shared list of individuals
-genotypes_A <- genotypes_A[individuals, ]
-genotypes_B <- genotypes_B[individuals, ]
-expression_A <- expression_A[expression_A[, 1] %in% individuals, ]
-expression_B <- expression_B[expression_B[, 1] %in% individuals, ]
-covar_A <- covar_A[covar_A[, 1] %in% individuals, ]
-covar_B <- covar_B[covar_B[, 1] %in% individuals, ]
+# Subset genotype, expression, and covariate data to the shared lists of individuals
+genotypes_A <- genotypes_A[individuals_A, ]
+genotypes_B <- genotypes_B[individuals_B, ]
+expression_A <- expression_A[expression_A[, 1] %in% individuals_A, ]
+expression_B <- expression_B[expression_B[, 1] %in% individuals_B, ]
+covar_A <- covar_A[covar_A[, 1] %in% individuals_A, ]
+covar_B <- covar_B[covar_B[, 1] %in% individuals_B, ]
 
 # Adjust expression values for covariates
 expression_covar_A <- summary(lm(expression_A[, 2] ~ ., data = covar_A[, -1]))
@@ -229,10 +228,10 @@ eqtls_A <- ElasticNetSelection(genotypes_A, expression_A[, 2])
 eqtls_B <- ElasticNetSelection(genotypes_B, expression_B[, 2])
 
 # Get individual log-likelihoods with tissue A as the baseline
-likelihoods_A <- GetLogLik(eqtls_A, genotypes_A, eqtls_B, genotypes_B, expression_A[, 2])
+likelihoods_A <- GetLogLik(eqtls_A, eqtls_B, genotypes_A, expression_A[, 2])
 
 # Get individual log-likelihoods with tissue B as the baseline
-likelihoods_B <- GetLogLik(eqtls_B, genotypes_B, eqtls_A, genotypes_A, expression_B[, 2])
+likelihoods_B <- GetLogLik(eqtls_B, eqtls_A, genotypes_B, expression_B[, 2])
 
 # Calculate p-values for each pair of baseline tissue and test
 if (likelihoods_A$n == 0) {
