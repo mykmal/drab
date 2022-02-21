@@ -11,12 +11,19 @@ ReadPlink <- function(root)
   bimfile <- paste(root, ".bim", sep = "")
   
   # Import bed/bim/fam files
-  # Note that specifying n and p speeds up BEDMatrix
+  # Note that specifying n and p speeds up BEDMatrix, since otherwise it would read the fam file again
   bim <- read.table(bimfile, header = FALSE, stringsAsFactors = FALSE)
   fam <- read.table(famfile, header = FALSE, stringsAsFactors = FALSE)
-  bed <- BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim), simple_names = TRUE)
+  bed <- BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim))
   
-  return(list(bed, bim, fam))
+  # add individual and variant names to the imported bed
+  rownames(bed) <- fam[, 2]
+  colnames(bed) <- bim[, 2]
+  
+  return(list(
+    bed = bed,
+    bim = bim,
+    fam = fam))
 }
 
 # Select eQTLs via elastic net regularization
