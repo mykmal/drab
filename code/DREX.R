@@ -11,7 +11,7 @@ ReadPlink <- function(root)
   bimfile <- paste(root, ".bim", sep = "")
   
   # Import bed/bim/fam files
-  # Note that specifying n and p speeds up BEDMatrix, since otherwise it would read the fam file again
+  # Note that specifying n and p speeds up BEDMatrix, since otherwise it would read the fam and bim files again
   bim <- read.table(bimfile, header = FALSE, stringsAsFactors = FALSE)
   fam <- read.table(famfile, header = FALSE, stringsAsFactors = FALSE)
   bed <- BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim))
@@ -55,10 +55,10 @@ GetLogLik <- function(features_1, genotypes_1, features_2, genotypes_2, expressi
   }
   
   # Fit a regression model with the SNPs in dosages_1 as features and expression as the response
-  model_1 <- lm(expression ~ dosages_1)
+  model_1 <- lm(expression ~ ., data = dosages_1)
   
   # Fit a regression model with the SNPs in dosages_2 as features and expression as the response
-  model_2 <- lm(expression ~ dosages_2)
+  model_2 <- lm(expression ~ ., data = dosages_2)
   
   # Get numbers of observations
   n_1 <- insight::n_obs(model_1)
@@ -160,7 +160,7 @@ expression_B <- data_B$fam[, c(2, 6)]
 # Load covariates
 covar_A <- read.table(covar_path_A, header = TRUE, stringsAsFactors = FALSE)[, -1]
 covar_B <- read.table(covar_path_B, header = TRUE, stringsAsFactors = FALSE)[, -1]
-cat("Loaded", ncol(covar_A)-2, "covariates for", tissue_A, "and", ncol(covar_B)-2, "covariates for", tissue_B, "\n")
+cat("Loaded", ncol(covar_A)-1, "covariates for", tissue_A, "and", ncol(covar_B)-1, "covariates for", tissue_B, "\n")
 
 # Find individuals for which we have both covariate and genotype/expression data
 individuals_A <- intersect(expression_A[, 1], covar_A[, 1])
@@ -178,9 +178,9 @@ covar_A <- covar_A[covar_A[, 1] %in% individuals, ]
 covar_B <- covar_B[covar_B[, 1] %in% individuals, ]
 
 # Adjust expression values for covariates
-expression_covar_A <- summary(lm(expression_A[, -1] ~ covar_A[, -1]))
+expression_covar_A <- summary(lm(expression_A[, 2] ~ ., data = covar_A[, -1]))
 cat(expression_covar_A$r.squared, "variance in", tissue_A, "expression explained by covariates\n")
-expression_covar_B <- summary(lm(expression_B[, -1] ~ covar_B[, -1]))
+expression_covar_B <- summary(lm(expression_B[, 2] ~ ., data = covar_B[, -1]))
 cat(expression_covar_B$r.squared, "variance in", tissue_B, "expression explained by covariates\n")
 
 # Scale and center the genotypes and adjusted expression values
@@ -203,10 +203,10 @@ if (sum(na_snps_B) != 0) {
 
 # Adjust genotypes for covariates
 for (i in seq_len(ncol(genotypes_A))) {
-  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ covar_A[, -1]))$residuals
+  genotypes_A[, i] <- summary(lm(genotypes_A[, i] ~ ., data = covar_A[, -1]))$residuals
 }
 for (i in seq_len(ncol(genotypes_B))) {
-  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ covar_B[, -1]))$residuals
+  genotypes_B[, i] <- summary(lm(genotypes_B[, i] ~ ., data = covar_B[, -1]))$residuals
 }
 
 # Scale and center the genotypes again
