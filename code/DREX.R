@@ -46,7 +46,7 @@ GetLogLik <- function(features_1, features_2, genotypes, expression)
   
   # If no eQTLs exist, we can't proceed further
   if ((length(features_1) == 0) | (length(features_2) == 0)) {
-    cat("WARNING: no eQTLs selected. Skipping gene.\n")
+    cat("WARNING: no eQTLs selected. Skipping gene.\n\n")
     return(list(
       n = 0,
       coef_1 = 0,
@@ -79,7 +79,7 @@ GetLogLik <- function(features_1, features_2, genotypes, expression)
   
   # If the two models were trained on different numbers of individuals, something went wrong
   if (n_1 != n_2) {
-    cat("WARNING: prediction models have nonequal numbers of individuals. Skipping gene.\n")
+    cat("WARNING: prediction models have nonequal numbers of individuals. Skipping gene.\n\n")
     return(list(
       n = 0,
       coef_1 = 0,
@@ -87,6 +87,9 @@ GetLogLik <- function(features_1, features_2, genotypes, expression)
       loglik_1 = 0,
       loglik_2 = 0))
   }
+  
+  cat(tissue_A, ": ", summary(model_1)$r.squared, " variance explained by prediction model\n", sep = "")
+  cat(tissue_B, ": ", summary(model_2)$r.squared, " variance explained by prediction model\n\n", sep = "")
   
   # Get numbers of parameters
   coef_1 <- insight::n_parameters(model_1)
@@ -204,12 +207,12 @@ expression_B[, 2] <- scale(expression_covar_B$residuals)
 # Check if any genotypes are NA
 na_snps_A <- apply(!is.finite(genotypes_A), 2, sum)
 if (sum(na_snps_A) != 0) {
-  cat("WARNING:", sum(na_snps_A != 0), "SNPs could not be scaled and were zeroed out in", tissue_A, "\n", file = stderr())
+  cat("WARNING:", sum(na_snps_A != 0), "SNPs could not be scaled and were zeroed out in", tissue_A, "\n")
   genotypes_A[, na_snps_A != 0] <- 0
 }
 na_snps_B <- apply(!is.finite(genotypes_B), 2, sum)
 if (sum(na_snps_B) != 0) {
-  cat("WARNING:", sum(na_snps_B != 0), "SNPs could not be scaled and were zeroed out in", tissue_B, "\n", file = stderr())
+  cat("WARNING:", sum(na_snps_B != 0), "SNPs could not be scaled and were zeroed out in", tissue_B, "\n")
   genotypes_B[, na_snps_B != 0] <- 0
 }
 
@@ -267,5 +270,5 @@ if (likelihoods_B$n == 0) {
 
 # Append the test results to the working file
 results <- paste(gene, gene_id, lr_pval_A, lr_pval_B, df_pval_A, df_pval_B, sep = "\t")
-cat(results, file = paste("temp/", tissue_A, "_", tissue_B, "_", batch, sep = ""), append = TRUE, sep = "\n")
+cat(results, file = paste("temp/", tissue_A, "_", tissue_B, "_", batch, ".txt", sep = ""), append = TRUE, sep = "\n")
 
