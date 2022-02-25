@@ -65,7 +65,8 @@ The second number in the array flag above specifies the upper bound for the numb
 
 When the process finishes, run
 ```
-cat "temp/${TISSUE_A}_${TISSUE_B}"* > "output/${TISSUE_A}_${TISSUE_B}.txt"; rm "temp/${TISSUE_A}_${TISSUE_B}"*
+printf "gene_name\tgene_id\t${TISSUE_A}_lrt\t${TISSUE_B}_lrt\t${TISSUE_A}_dft\t${TISSUE_B}_dft\n" | cat - temp/${TISSUE_A}_${TISSUE_B}* > output/${TISSUE_A}_${TISSUE_B}.txt
+rm temp/${TISSUE_A}_${TISSUE_B}*
 ```
 to concatenate the batch array results into a single file. The final output `drex/output/<TISSUE_A>_<TISSUE_B>.txt` is a tab-separated file with one gene per row. The columns specify the gene name, the gene Ensembl ID, the likelihood-ratio test p-value with `TISSUE_A` as the baseline, the likelihood-ratio test p-value with `TISSUE_B` as the baseline, the distribution-free test p-value with `TISSUE_A` as the baseline, and the distribution-free test p-value with `TISSUE_B` as the baseline. If the p-values for a given gene are significant, then we conclude that the genetic regulation of that gene's expression is significantly different between `TISSUE_A` and `TISSUE_B`.  
 **Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before inference.

@@ -62,7 +62,7 @@ rm -f ${OUT_B}*
 continue
 fi
 
-printf "\n${GENE}\n"
+printf "${GENE}\n"
 
 Rscript code/DREX.R ${NAME} ${ID} ${TISSUE_A} ${OUT_A} ${TISSUE_B} ${OUT_B} ${BATCH}
 
