@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64g
-#SBATCH --time=10:00:00
+#SBATCH --time=24:00:00
 #SBATCH --tmp=10g
 #SBATCH -p amdlarge,amd512,amd2tb,ram256g,ram1t
 #SBATCH --mail-type=ALL
@@ -28,6 +28,9 @@ BATCH=${SLURM_ARRAY_TASK_ID}
 mkdir temp/${TISSUE_A}.${BATCH}
 mkdir temp/${TISSUE_B}.${BATCH}
 
+Rscript code/SplitData.R ${TISSUE_A}
+Rscript code/SplitData.R ${TISSUE_B}
+
 if [ ${PC_ONLY} = "FALSE" ] || [ ${PC_ONLY} = "F" ]; then
 FILE="gene_annotation.txt"
 else
@@ -42,27 +45,35 @@ CHR=$(echo ${GENE} | awk '{print $3}' | tr -d "chr")
 START=$(echo ${GENE} | awk '{p=$4 - 500e3; if(p<0) p=0; print p;}')
 END=$(echo ${GENE} | awk '{print $5 + 500e3}')
 
-EXPRESSION_A=$(zcat expression_matrices/${TISSUE_A}.v8.EUR.normalized_expression.bed.gz | awk -v i=${ID} '$4 == i')
-EXPRESSION_B=$(zcat expression_matrices/${TISSUE_B}.v8.EUR.normalized_expression.bed.gz | awk -v i=${ID} '$4 == i')
-if [ -z "${EXPRESSION_A}" ] || [ -z "${EXPRESSION_B}" ]; then
+printf "${GENE}\n"
+
+EXPRESSION_A1=$(cat temp/${TISSUE_A}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_B1=$(cat temp/${TISSUE_B}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_A2=$(cat temp/${TISSUE_A}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_B2=$(cat temp/${TISSUE_B}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+if ([ -z "${EXPRESSION_A1}" ] || [ -z "${EXPRESSION_B1}" ] || [ -z "${EXPRESSION_A2}" ] || [ -z "${EXPRESSION_B2}" ]); then
+printf "Expression data not found. Skipping gene.\n"
 continue
 fi
 
 OUT_A="temp/${TISSUE_A}.${BATCH}/${TISSUE_A}.${ID}"
 OUT_B="temp/${TISSUE_B}.${BATCH}/${TISSUE_B}.${ID}"
 
-echo ${EXPRESSION_A} | tr ' ' '\n' | tail -n+5 | paste expression_covariates/${TISSUE_A}.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}.pheno
-echo ${EXPRESSION_B} | tr ' ' '\n' | tail -n+5 | paste expression_covariates/${TISSUE_B}.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}.pheno
+echo ${EXPRESSION_A1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half1.pheno
+echo ${EXPRESSION_B1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half1.pheno
+echo ${EXPRESSION_A2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half2.pheno
+echo ${EXPRESSION_B2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half2.pheno
 
-plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_A}.pheno --keep ${OUT_A}.pheno --make-bed --out ${OUT_A}
-plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_B}.pheno --keep ${OUT_B}.pheno --make-bed --out ${OUT_B}
-if [ ! -f ${OUT_A}.bed ] || [ ! -f ${OUT_B}.bed ]; then
+plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_A}_half1.pheno --keep ${OUT_A}_half1.pheno --make-bed --out ${OUT_A}_half1
+plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_B}_half1.pheno --keep ${OUT_B}_half1.pheno --make-bed --out ${OUT_B}_half1
+plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_A}_half2.pheno --keep ${OUT_A}_half2.pheno --make-bed --out ${OUT_A}_half2
+plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_B}_half2.pheno --keep ${OUT_B}_half2.pheno --make-bed --out ${OUT_B}_half2
+if ([ ! -f ${OUT_A}_half1.bed ] || [ ! -f ${OUT_B}_half1.bed ] || [ ! -f ${OUT_A}_half2.bed ] || [ ! -f ${OUT_B}_half2.bed ]); then
+printf "Unable to extract genotype data. Skipping gene.\n"
 rm -f ${OUT_A}*
 rm -f ${OUT_B}*
 continue
 fi
-
-printf "${GENE}\n"
 
 Rscript code/DREX.R ${NAME} ${ID} ${TISSUE_A} ${OUT_A} ${TISSUE_B} ${OUT_B} ${BATCH}
 
@@ -73,4 +84,7 @@ done
 
 rm -fr temp/${TISSUE_A}.${BATCH}
 rm -fr temp/${TISSUE_B}.${BATCH}
+
+rm -f temp/${TISSUE_A}*
+rm -f temp/${TISSUE_B}*
 

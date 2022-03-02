@@ -19,7 +19,7 @@ module load R/4.1.0
 
 cd ${DREX}
 
-Rscript code/SplitData.R ${TISSUE}
+Rscript code/SplitData.R ${TISSUE} SAVE
 
 gzip expression_matrices/*.bed
 
