@@ -28,8 +28,8 @@ BATCH=${SLURM_ARRAY_TASK_ID}
 mkdir temp/${TISSUE_A}.${BATCH}
 mkdir temp/${TISSUE_B}.${BATCH}
 
-Rscript code/SplitData.R ${TISSUE_A}
-Rscript code/SplitData.R ${TISSUE_B}
+Rscript code/SplitData.R ${TISSUE_A} NOTSAVE
+Rscript code/SplitData.R ${TISSUE_B} NOTSAVE
 
 if [ ${PC_ONLY} = "FALSE" ] || [ ${PC_ONLY} = "F" ]; then
 FILE="gene_annotation.txt"
