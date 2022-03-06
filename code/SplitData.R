@@ -1,7 +1,10 @@
-tissue <- commandArgs(trailingOnly = TRUE)[1]
-if (commandArgs(trailingOnly = TRUE)[2] == "SAVE") {
+args <- commandArgs(trailingOnly = TRUE)
+
+tissue <- args[1]
+if (args[2] == "SAVE") {
   save <- TRUE
 } else {
+  batch <- args[3]
   save <- FALSE
 }
 
@@ -47,8 +50,8 @@ if (save) {
 
 if (!save) {
   # Write the split expression data to new files in a temporary location
-  write.table(cbind(annotations, expression_half1), file = paste("temp/", tissue, "_half1.v8.EUR.normalized_expression.bed", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
-  write.table(cbind(annotations, expression_half2), file = paste("temp/", tissue, "_half2.v8.EUR.normalized_expression.bed", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
+  write.table(cbind(annotations, expression_half1), file = paste("temp/", tissue, ".", batch, "/", tissue, "_half1.v8.EUR.normalized_expression.bed", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
+  write.table(cbind(annotations, expression_half2), file = paste("temp/", tissue, ".", batch, "/", tissue, "_half2.v8.EUR.normalized_expression.bed", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
 } else {
   # Write the split expression data to new files in a permanent location
   write.table(cbind(annotations, expression_half1), file = paste("expression_matrices/", tissue, "_half1.v8.EUR.normalized_expression.bed", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -59,8 +62,8 @@ if (!save) {
 
 if (!save) {
   # Write the split covariate data to new files in a temporary location
-  write.table(covariates_half1, file = paste("temp/", tissue, "_half1.v8.EUR.covariates.plink.txt", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
-  write.table(covariates_half2, file = paste("temp/", tissue, "_half2.v8.EUR.covariates.plink.txt", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
+  write.table(covariates_half1, file = paste("temp/", tissue, ".", batch, "/", tissue, "_half1.v8.EUR.covariates.plink.txt", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
+  write.table(covariates_half2, file = paste("temp/", tissue, ".", batch, "/", tissue, "_half2.v8.EUR.covariates.plink.txt", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
 } else {
   # Write the split covariate data to new files in a permanent location
   write.table(covariates_half1, file = paste("expression_covariates/", tissue, "_half1.v8.EUR.covariates.plink.txt", sep = ""), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -71,8 +74,8 @@ if (!save) {
 
 if (!save) {
   # Write the lists of individuals in each split to new header files in a temporary location
-  write.table(samples_half1, file = paste("temp/", tissue, "_half1.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
-  write.table(samples_half2, file = paste("temp/", tissue, "_half2.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
+  write.table(samples_half1, file = paste("temp/", tissue, ".", batch, "/", tissue, "_half1.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
+  write.table(samples_half2, file = paste("temp/", tissue, ".", batch, "/", tissue, "_half2.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)
 } else {
   # Write the lists of individuals in each split to new header files in a permanent location
   write.table(samples_half1, file = paste("expression_covariates/", tissue, "_half1.v8.EUR.covariates.txt.HEADER", sep = ""), sep = "\n", quote = FALSE, row.names = FALSE, col.names = FALSE)

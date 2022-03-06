@@ -29,8 +29,8 @@ ReadPlink <- function(root)
 # Load expression and genotype data, adjust for covariates, and normalize
 CovarAdjust <- function(tissue, plink_path)
 {
-  covar_path_train <- paste("temp/", tissue, "_half1.v8.EUR.covariates.plink.txt", sep = "")
-  covar_path_test <- paste("temp/", tissue, "_half2.v8.EUR.covariates.plink.txt", sep = "")
+  covar_path_train <- paste("temp/", tissue, ".", batch, "/", tissue, "_half1.v8.EUR.covariates.plink.txt", sep = "")
+  covar_path_test <- paste("temp/", tissue, ".", batch, "/", tissue, "_half2.v8.EUR.covariates.plink.txt", sep = "")
   
   # Check that required files exist
   plink_files <- paste(plink_path, c("_half1.bed", "_half2.bed", "_half1.bim", "_half2.bim", "_half1.fam", "_half2.fam"), sep = "")
@@ -131,60 +131,60 @@ ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
   return(eqtls[-1])
 }
 
-# Compute vectors of individual log-likelihoods for regression models with expression as the response and SNPs from features_1, features_2 as predictors
-GetLogLik <- function(tissue_1, tissue_2, features_1, features_2, genotypes, expression)
+# Compute vectors of individual log-likelihoods for regression models with expression as the response and SNPs from eqtls_A, eqtls_B as predictors
+GetLogLik <- function(tissue, genotypes, expression)
 {
-  # Get dosages for the SNPs in features_1, features_2
-  features_1 <- intersect(features_1, colnames(genotypes))
-  features_2 <- intersect(features_2, colnames(genotypes))
-  dosages_1 <- as.matrix(genotypes[, features_1])
-  dosages_2 <- as.matrix(genotypes[, features_2])
+  # Get dosages for the SNPs in eqtls_A, eqtls_B
+  features_A <- intersect(eqtls_A, colnames(genotypes))
+  features_B <- intersect(eqtls_B, colnames(genotypes))
+  dosages_A <- as.matrix(genotypes[, features_A])
+  dosages_B <- as.matrix(genotypes[, features_B])
   
   # If no eQTLs exist, we can't proceed further
-  if ((ncol(dosages_1) == 0) | (ncol(dosages_2) == 0)) {
-    cat("WARNING: no eQTLs selected in ", tissue, ". Skipping gene.\n\n", sep = "")
+  if ((ncol(dosages_A) == 0) | (ncol(dosages_B) == 0)) {
+    cat("WARNING: no eQTLs selected in ", tissue, ". Skipping gene.\n", sep = "")
     return(list(
       n = 0,
-      coef_1 = 0,
-      coef_2 = 0,
-      loglik_1 = 0,
-      loglik_2 = 0))
+      coef_A = 0,
+      coef_B = 0,
+      loglik_A = 0,
+      loglik_B = 0))
   }
   
   # If multiple SNPs are present, remove the highly correlated ones
-  if (ncol(dosages_1) > 1) {
-    tmp <- cor(dosages_1)
+  if (ncol(dosages_A) > 1) {
+    tmp <- cor(dosages_A)
     tmp[!lower.tri(tmp)] <- 0
-    dosages_1 <- dosages_1[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
+    dosages_A <- dosages_A[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
   }
-  if (ncol(dosages_2) > 1) {
-    tmp <- cor(dosages_2)
+  if (ncol(dosages_B) > 1) {
+    tmp <- cor(dosages_B)
     tmp[!lower.tri(tmp)] <- 0
-    dosages_2 <- dosages_2[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
+    dosages_B <- dosages_B[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
   }
   
-  # Fit a regression model with the SNPs in dosages_1 as features and expression as the response
-  model_1 <- lm(expression ~ ., data = as.data.frame(dosages_1))
+  # Fit a regression model with the SNPs in dosages_A as features and expression as the response
+  model_A <- lm(expression ~ ., data = as.data.frame(dosages_A))
   
-  # Fit a regression model with the SNPs in dosages_2 as features and expression as the response
-  model_2 <- lm(expression ~ ., data = as.data.frame(dosages_2))
+  # Fit a regression model with the SNPs in dosages_B as features and expression as the response
+  model_B <- lm(expression ~ ., data = as.data.frame(dosages_B))
   
-  cat(tissue_1, ": ", summary(model_1)$r.squared, " variance explained by ", tissue_1, "-specific eQTLS and ", summary(model_2)$r.squared, " variance explained by ", tissue_2, "-specific eQTLs\n", sep = "")
+  cat(tissue, ": ", summary(model_A)$r.squared, " variance explained by ", tissue_A, "-specific eQTLS and ", summary(model_B)$r.squared, " variance explained by ", tissue_B, "-specific eQTLs\n", sep = "")
   
   # Get numbers of parameters
-  coef_1 <- insight::n_parameters(model_1)
-  coef_2 <- insight::n_parameters(model_2)
+  coef_A <- insight::n_parameters(model_A)
+  coef_B <- insight::n_parameters(model_B)
   
   # Get individual log-likelihoods
-  loglik_1 <- attributes(insight::get_loglikelihood(model_1))$per_obs
-  loglik_2 <- attributes(insight::get_loglikelihood(model_2))$per_obs
+  loglik_A <- attributes(insight::get_loglikelihood(model_A))$per_obs
+  loglik_B <- attributes(insight::get_loglikelihood(model_B))$per_obs
   
   return(list(
-    n = insight::n_obs(model_1),
-    coef_1 = coef_1,
-    coef_2 = coef_2,
-    loglik_1 = loglik_1,
-    loglik_2 = loglik_2))
+    n = insight::n_obs(model_A),
+    coef_A = coef_A,
+    coef_B = coef_B,
+    loglik_A = loglik_A,
+    loglik_B = loglik_B))
 }
 
 # Calculate the likelihood-ratio test p-value
@@ -192,15 +192,18 @@ LRT <- function(x, correction = "both")
 {
   # No AIC-based correction is applied
   if (correction == "none")
-    numerator <- sum(x$loglik_1) - sum(x$loglik_2)
-  # AIC-based correction is applied to the model 1 log likelihood
-  if (correction == "first")
-    numerator <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2)
+    numerator <- sum(x$loglik_A) - sum(x$loglik_B)
+  # AIC-based correction is applied to the model A log likelihood
+  if (correction == "A")
+    numerator <- sum(x$loglik_A) - x$coef_A - sum(x$loglik_B)
+  # AIC-based correction is applied to the model B log likelihood
+  if (correction == "B")
+    numerator <- sum(x$loglik_A) - sum(x$loglik_B) + x$coef_B
   # AIC-based correction is applied to both log likelihoods
   else
-    numerator <- sum(x$loglik_1) - x$coef_1 - sum(x$loglik_2) + x$coef_2
+    numerator <- sum(x$loglik_A) - x$coef_A - sum(x$loglik_B) + x$coef_B
   
-  variance <- (1 / x$n) * sum((x$loglik_1 - x$loglik_2)**2) - ((1 / x$n) * sum(x$loglik_1 - x$loglik_2))**2
+  variance <- (1 / x$n) * sum((x$loglik_A - x$loglik_B)**2) - ((1 / x$n) * sum(x$loglik_A - x$loglik_B))**2
   statistic <- numerator / sqrt(x$n * variance)
   p <- 2 * pnorm(-abs(statistic))
   
@@ -212,13 +215,16 @@ DFT <- function(x, correction = "both")
 {
   # No AIC-based correction is applied
   if (correction == "none")
-    d <- x$loglik_1 - x$loglik_2
-  # AIC-based correction is applied to the model 1 log likelihood
-  if (correction == "first")
-    d <- x$loglik_1 - (x$coef_1 / x$n) - x$loglik_2
+    d <- x$loglik_A - x$loglik_B
+  # AIC-based correction is applied to the model A log likelihood
+  if (correction == "A")
+    d <- x$loglik_A - (x$coef_A / x$n) - x$loglik_B
+  # AIC-based correction is applied to the model B log likelihood
+  if (correction == "B")
+    d <- x$loglik_A - x$loglik_B + (x$coef_B / x$n)
   # AIC-based correction is applied to both log likelihoods
   else
-    d <- x$loglik_1 - (x$coef_1 / x$n) - x$loglik_2 + (x$coef_2 / x$n)
+    d <- x$loglik_A - (x$coef_A / x$n) - x$loglik_B + (x$coef_B / x$n)
   
   b <- sum(d > 0)
   statistic <- min(b, x$n - b)
@@ -258,12 +264,12 @@ cat(tissue_A, ": ", length(eqtls_A), " cis-eQTLs selected\n", sep = "")
 cat(tissue_B, ": ", length(eqtls_B), " cis-eQTLs selected\n", sep = "")
 
 # Train expression prediction models with tissue-specific eQTLs on data from tissue A, and return their log-likelihoods
-likelihoods_A <- GetLogLik(tissue_A, tissue_B, eqtls_A, eqtls_B, data_A$genotypes_test, data_A$expression_test[, 2])
+likelihoods_A <- GetLogLik(tissue_A, data_A$genotypes_test, data_A$expression_test[, 2])
 
 # Train expression prediction models with tissue-specific eQTLs on data from tissue B, and return their log-likelihoods
-likelihoods_B <- GetLogLik(tissue_B, tissue_A, eqtls_B, eqtls_A, data_B$genotypes_test, data_B$expression_test[, 2])
+likelihoods_B <- GetLogLik(tissue_B, data_B$genotypes_test, data_B$expression_test[, 2])
 
-cat("\n")
+cat("\n\n")
 
 # Calculate p-values for each pair of baseline tissue and model selection test
 if (likelihoods_A$n == 0) {

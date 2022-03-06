@@ -5,7 +5,7 @@
 #SBATCH --mem=64g
 #SBATCH --time=24:00:00
 #SBATCH --tmp=10g
-#SBATCH -p amdlarge,amd512,amd2tb,ram256g,ram1t
+#SBATCH -p amd512,amd2tb,ram256g,ram1t
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=scientist@university.edu
 #SBATCH -o logs/%A_%a.out
@@ -28,8 +28,8 @@ BATCH=${SLURM_ARRAY_TASK_ID}
 mkdir temp/${TISSUE_A}.${BATCH}
 mkdir temp/${TISSUE_B}.${BATCH}
 
-Rscript code/SplitData.R ${TISSUE_A} NOTSAVE
-Rscript code/SplitData.R ${TISSUE_B} NOTSAVE
+Rscript code/SplitData.R ${TISSUE_A} NOTSAVE ${BATCH}
+Rscript code/SplitData.R ${TISSUE_B} NOTSAVE ${BATCH}
 
 if [ ${PC_ONLY} = "FALSE" ] || [ ${PC_ONLY} = "F" ]; then
 FILE="gene_annotation.txt"
@@ -47,10 +47,10 @@ END=$(echo ${GENE} | awk '{print $5 + 500e3}')
 
 printf "${GENE}\n"
 
-EXPRESSION_A1=$(cat temp/${TISSUE_A}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
-EXPRESSION_B1=$(cat temp/${TISSUE_B}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
-EXPRESSION_A2=$(cat temp/${TISSUE_A}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
-EXPRESSION_B2=$(cat temp/${TISSUE_B}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_A1=$(cat temp/${TISSUE_A}.${BATCH}/${TISSUE_A}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_B1=$(cat temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half1.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_A2=$(cat temp/${TISSUE_A}.${BATCH}/${TISSUE_A}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
+EXPRESSION_B2=$(cat temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
 if ([ -z "${EXPRESSION_A1}" ] || [ -z "${EXPRESSION_B1}" ] || [ -z "${EXPRESSION_A2}" ] || [ -z "${EXPRESSION_B2}" ]); then
 printf "Expression data not found. Skipping gene.\n"
 continue
@@ -59,10 +59,10 @@ fi
 OUT_A="temp/${TISSUE_A}.${BATCH}/${TISSUE_A}.${ID}"
 OUT_B="temp/${TISSUE_B}.${BATCH}/${TISSUE_B}.${ID}"
 
-echo ${EXPRESSION_A1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half1.pheno
-echo ${EXPRESSION_B1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half1.pheno
-echo ${EXPRESSION_A2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half2.pheno
-echo ${EXPRESSION_B2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half2.pheno
+echo ${EXPRESSION_A1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}.${BATCH}/${TISSUE_A}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half1.pheno
+echo ${EXPRESSION_B1} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half1.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half1.pheno
+echo ${EXPRESSION_A2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_A}.${BATCH}/${TISSUE_A}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_A}_half2.pheno
+echo ${EXPRESSION_B2} | tr ' ' '\n' | tail -n+5 | paste temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half2.v8.EUR.covariates.txt.HEADER - | awk '{print 0 "\t" $0}' > ${OUT_B}_half2.pheno
 
 plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_A}_half1.pheno --keep ${OUT_A}_half1.pheno --make-bed --out ${OUT_A}_half1
 plink --silent --bfile genotypes/dosages_processed --allow-no-sex --chr ${CHR} --from-bp ${START} --to-bp ${END} --pheno ${OUT_B}_half1.pheno --keep ${OUT_B}_half1.pheno --make-bed --out ${OUT_B}_half1
@@ -84,7 +84,4 @@ done
 
 rm -fr temp/${TISSUE_A}.${BATCH}
 rm -fr temp/${TISSUE_B}.${BATCH}
-
-rm -f temp/${TISSUE_A}*
-rm -f temp/${TISSUE_B}*
 
