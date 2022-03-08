@@ -14,16 +14,19 @@ ReadPlink <- function(root)
   # Note that specifying n and p speeds up BEDMatrix, since otherwise it would read the fam and bim files again
   bim <- read.table(bimfile, header = FALSE, stringsAsFactors = FALSE)
   fam <- read.table(famfile, header = FALSE, stringsAsFactors = FALSE)
-  bed <- BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim))
+  bed <- as.data.frame(as.matrix(BEDMatrix::BEDMatrix(bedfile, n = nrow(fam), p = nrow(bim))))
   
   # Add individual and variant names to the imported bed
-  rownames(bed) <- fam[, 2]
-  colnames(bed) <- bim[, 2]
+  rownames(bed) <- fam$V2
+  colnames(bed) <- bim$V2
+  
+  # Remove unused fam columns and rename the remaining ones
+  fam <- subset(fam, select = c(V2, V6))
+  colnames(fam) <- c("IID", "expression")
   
   return(list(
-    bed = bed,
-    bim = bim,
-    fam = fam))
+    genotypes = bed,
+    expression = fam))
 }
 
 # Load expression and genotype data, adjust for covariates, and normalize
@@ -46,71 +49,88 @@ CovarAdjust <- function(tissue, plink_path)
   # Load genotype and expression data
   data_train <- ReadPlink(paste(plink_path, "_half1", sep = ""))
   data_test <- ReadPlink(paste(plink_path, "_half2", sep = ""))
-  genotypes_train <- data_train$bed
-  genotypes_test <- data_test$bed
-  expression_train <- data_train$fam[, c(2, 6)]
-  expression_test <- data_test$fam[, c(2, 6)]
+  genotypes_train <- data_train$genotypes
+  genotypes_test <- data_test$genotypes
+  expression_train <- data_train$expression
+  expression_test <- data_test$expression
   
   # Load covariates
-  covar_train <- read.table(covar_path_train, header = TRUE, stringsAsFactors = FALSE)[, -1]
-  covar_test <- read.table(covar_path_test, header = TRUE, stringsAsFactors = FALSE)[, -1]
+  covar_train <- read.table(covar_path_train, header = TRUE, stringsAsFactors = FALSE)
+  covar_train <- subset(covar_train, select = -FID)
+  covar_test <- read.table(covar_path_test, header = TRUE, stringsAsFactors = FALSE)
+  covar_test <- subset(covar_test, select = -FID)
   cat(tissue, ": Loaded ", ncol(covar_train)-1, " covariates for training data and ", ncol(covar_test)-1, " covariates for testing data\n", sep = "")
   
-  # Find individuals for which we have both genotype/expression and covariate data
-  individuals_train <- intersect(expression_train[, 1], covar_train[, 1])
-  individuals_test <- intersect(expression_test[, 1], covar_test[, 1])
-  
-  # Subset genotype, expression, and covariate data to the shared lists of individuals
-  genotypes_train <- as.matrix(genotypes_train[individuals_train, ])
-  genotypes_test <- as.matrix(genotypes_test[individuals_test, ])
-  expression_train <- as.matrix(expression_train[expression_train[, 1] %in% individuals_train, ])
-  expression_test <- as.matrix(expression_test[expression_test[, 1] %in% individuals_test, ])
-  covar_train <- as.matrix(covar_train[covar_train[, 1] %in% individuals_train, ])
-  covar_test <- as.matrix(covar_test[covar_test[, 1] %in% individuals_test, ])
+  # Match expression data with covariates by individual IDs
+  merged_expression_train <- merge(expression_train, covar_train)
+  rownames(merged_expression_train) <- merged_expression_train$IID
+  merged_expression_train <- subset(merged_expression_train, select = -IID)
+  merged_expression_test <- merge(expression_test, covar_test)
+  rownames(merged_expression_test) <- merged_expression_test$IID
+  merged_expression_test <- subset(merged_expression_test, select = -IID)
   
   # Adjust expression values for covariates
-  expression_adjust_train <- summary(lm(expression_train[, 2] ~ ., data = as.data.frame(covar_train[, -1])))
-  cat(tissue, "training data:", expression_adjust_train$r.squared, "variance in expression explained by covariates\n")
-  expression_adjust_test <- summary(lm(expression_test[, 2] ~ ., data = as.data.frame(covar_test[, -1])))
-  cat(tissue, "testing data:", expression_adjust_test$r.squared, "variance in expression explained by covariates\n")
+  expression_train_summary <- summary(lm(expression ~ ., data = merged_expression_train))
+  cat(tissue, "training data:", expression_train_summary$r.squared, "variance in expression explained by covariates\n")
+  expression_test_summary <- summary(lm(expression ~ ., data = merged_expression_test))
+  cat(tissue, "testing data:", expression_test_summary$r.squared, "variance in expression explained by covariates\n")
   
-  # Scale and center the genotypes and adjusted expression values
-  genotypes_train <- scale(genotypes_train)
-  genotypes_test <- scale(genotypes_test)
-  expression_train[, 2] <- scale(expression_adjust_train$residuals)
-  expression_test[, 2] <- scale(expression_adjust_test$residuals)
+  # Scale and center the genotypes and the adjusted expression values
+  genotypes_train <- as.data.frame(scale(genotypes_train))
+  genotypes_test <- as.data.frame(scale(genotypes_test))
+  expression_train <- as.data.frame(scale(expression_train_summary$residuals))
+  colnames(expression_train) <- "expression"
+  expression_test <- as.data.frame(scale(expression_test_summary$residuals))
+  colnames(expression_test) <- "expression"
   
   # Check if any genotypes are NA
-  na_snps_train <- apply(!is.finite(genotypes_train), 2, sum)
+  na_snps_train <- apply(genotypes_train, 2, function(x) !all(is.finite(x)))
   if (sum(na_snps_train) != 0) {
-    cat("WARNING:", sum(na_snps_train != 0), "SNPs could not be scaled and were zeroed out in", tissue, "training data\n")
-    genotypes_train[, na_snps_train != 0] <- 0
+    cat("WARNING:", sum(na_snps_train), "SNPs could not be scaled and were removed in", tissue, "training data\n")
+    genotypes_train <- subset(genotypes_train, select = !na_snps_train)
   }
-  na_snps_test <- apply(!is.finite(genotypes_test), 2, sum)
+  na_snps_test <- apply(genotypes_test, 2, function(x) !all(is.finite(x)))
   if (sum(na_snps_test) != 0) {
-    cat("WARNING:", sum(na_snps_test != 0), "SNPs could not be scaled and were zeroed out in", tissue, "testing data\n")
-    genotypes_test[, na_snps_test != 0] <- 0
+    cat("WARNING:", sum(na_snps_test), "SNPs could not be scaled and were removed in", tissue, "testing data\n")
+    genotypes_test <- subset(genotypes_test, select = !na_snps_test)
   }
+  
+  # Match genotypes with covariates by individual IDs
+  merged_genotypes_train <- cbind(rownames(genotypes_train), genotypes_train)
+  colnames(merged_genotypes_train) <- c("IID", colnames(genotypes_train))
+  merged_genotypes_train <- merge(merged_genotypes_train, covar_train)
+  rownames(merged_genotypes_train) <- merged_genotypes_train$IID
+  merged_genotypes_train <- subset(merged_genotypes_train, select = -IID)
+  merged_genotypes_test <- cbind(rownames(genotypes_test), genotypes_test)
+  colnames(merged_genotypes_test) <- c("IID", colnames(genotypes_test))
+  merged_genotypes_test <- merge(merged_genotypes_test, covar_test)
+  rownames(merged_genotypes_test) <- merged_genotypes_test$IID
+  merged_genotypes_test <- subset(merged_genotypes_test, select = -IID)
   
   # Adjust genotypes for covariates
-  for (i in seq_len(ncol(genotypes_train))) {
-    genotypes_train[, i] <- summary(lm(genotypes_train[, i] ~ ., data = as.data.frame(covar_train[, -1])))$residuals
+  for (snp in colnames(genotypes_train)) {
+    genotypes_train_summary <- summary(lm(reformulate(colnames(covar_train)[-1], response = snp), data = merged_genotypes_train))
+    merged_genotypes_train[[snp]] <- genotypes_train_summary$residuals
   }
-  for (i in seq_len(ncol(genotypes_test))) {
-    genotypes_test[, i] <- summary(lm(genotypes_test[, i] ~ ., data = as.data.frame(covar_test[, -1])))$residuals
+  for (snp in colnames(genotypes_test)) {
+    genotypes_test_summary <- summary(lm(reformulate(colnames(covar_test)[-1], response = snp), data = merged_genotypes_test))
+    merged_genotypes_test[[snp]] <- genotypes_test_summary$residuals
   }
   
+  genotypes_train <- merged_genotypes_train[, 1:ncol(genotypes_train)]
+  genotypes_test <- merged_genotypes_test[, 1:ncol(genotypes_test)]
+  
   # Scale and center the genotypes again
-  genotypes_train <- scale(genotypes_train)
-  genotypes_test <- scale(genotypes_test)
+  genotypes_train <- as.data.frame(scale(genotypes_train))
+  genotypes_test <- as.data.frame(scale(genotypes_test))
   
   # Remove monomorphic SNPs
   sds_train <- apply(genotypes_train, 2, sd)
-  keep_train <- (sds_train != 0) & (!is.na(sds_train))
-  genotypes_train <- as.matrix(genotypes_train[, keep_train])
+  keep_train <- (sds_train != 0) & (is.finite(sds_train))
+  genotypes_train <- subset(genotypes_train, select = keep_train)
   sds_test <- apply(genotypes_test, 2, sd)
-  keep_test <- (sds_test != 0) & (!is.na(sds_test))
-  genotypes_test <- as.matrix(genotypes_test[, keep_test])
+  keep_test <- (sds_test != 0) & (is.finite(sds_test))
+  genotypes_test <- subset(genotypes_test, select = keep_test)
   
   cat(tissue, "training data:", nrow(expression_train), "individuals and", ncol(genotypes_train), "cis-SNPs\n")
   cat(tissue, "testing data:", nrow(expression_test), "individuals and", ncol(genotypes_test), "cis-SNPs\n")
@@ -125,8 +145,8 @@ CovarAdjust <- function(tissue, plink_path)
 # Select eQTLs via elastic net regularization
 ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
 {
-  enet_model <- glmnet::cv.glmnet(x = genos, y = pheno, alpha = alpha, nfold = 5, intercept = TRUE, standardize = FALSE)
-  eqtls <- rownames(coef(enet_model, s = "lambda.min"))[coef(enet_model, s = "lambda.min")[, 1] != 0]
+  enet_model <- glmnet::cv.glmnet(x = as.matrix(genos), y = as.matrix(pheno), alpha = alpha, nfold = 5, intercept = TRUE, standardize = FALSE)
+  eqtls <- rownames(coef(enet_model, s = "lambda.1se"))[coef(enet_model, s = "lambda.min")[, 1] != 0]
   
   return(eqtls[-1])
 }
@@ -137,8 +157,8 @@ GetLogLik <- function(tissue, genotypes, expression)
   # Get dosages for the SNPs in eqtls_A, eqtls_B
   features_A <- intersect(eqtls_A, colnames(genotypes))
   features_B <- intersect(eqtls_B, colnames(genotypes))
-  dosages_A <- as.matrix(genotypes[, features_A])
-  dosages_B <- as.matrix(genotypes[, features_B])
+  dosages_A <- subset(genotypes, select = features_A)
+  dosages_B <- subset(genotypes, select = features_B)
   
   # If no eQTLs exist, we can't proceed further
   if ((ncol(dosages_A) == 0) | (ncol(dosages_B) == 0)) {
@@ -163,11 +183,23 @@ GetLogLik <- function(tissue, genotypes, expression)
     dosages_B <- dosages_B[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
   }
   
+  # Scale dosages
+  dosages_A <- as.data.frame(scale(dosages_A))
+  dosages_B <- as.data.frame(scale(dosages_B))
+  
+  # Match dosage and expression data by individual IDs
+  merged_data_A <- merge(expression, dosages_A, by = 0)
+  rownames(merged_data_A) <- merged_data_A$Row.names
+  merged_data_A <- subset(merged_data_A, select = -Row.names)
+  merged_data_B <- merge(expression, dosages_B, by = 0)
+  rownames(merged_data_B) <- merged_data_B$Row.names
+  merged_data_B <- subset(merged_data_B, select = -Row.names)
+  
   # Fit a regression model with the SNPs in dosages_A as features and expression as the response
-  model_A <- lm(expression ~ ., data = as.data.frame(dosages_A))
+  model_A <- lm(expression ~ ., data = merged_data_A)
   
   # Fit a regression model with the SNPs in dosages_B as features and expression as the response
-  model_B <- lm(expression ~ ., data = as.data.frame(dosages_B))
+  model_B <- lm(expression ~ ., data = merged_data_B)
   
   cat(tissue, ": ", summary(model_A)$r.squared, " variance explained by ", tissue_A, "-specific eQTLS and ", summary(model_B)$r.squared, " variance explained by ", tissue_B, "-specific eQTLs\n", sep = "")
   
@@ -257,19 +289,19 @@ data_A <- CovarAdjust(tissue_A, plink_path_A)
 data_B <- CovarAdjust(tissue_B, plink_path_B)
 
 # Select eQTLs for each tissue
-eqtls_A <- ElasticNetSelection(data_A$genotypes_train, data_A$expression_train[, 2])
-eqtls_B <- ElasticNetSelection(data_B$genotypes_train, data_B$expression_train[, 2])
+eqtls_A <- ElasticNetSelection(data_A$genotypes_train, data_A$expression_train)
+eqtls_B <- ElasticNetSelection(data_B$genotypes_train, data_B$expression_train)
 
 cat(tissue_A, ": ", length(eqtls_A), " cis-eQTLs selected\n", sep = "")
 cat(tissue_B, ": ", length(eqtls_B), " cis-eQTLs selected\n", sep = "")
 
 # Train expression prediction models with tissue-specific eQTLs on data from tissue A, and return their log-likelihoods
-likelihoods_A <- GetLogLik(tissue_A, data_A$genotypes_test, data_A$expression_test[, 2])
+likelihoods_A <- GetLogLik(tissue_A, data_A$genotypes_test, data_A$expression_test)
 
 # Train expression prediction models with tissue-specific eQTLs on data from tissue B, and return their log-likelihoods
-likelihoods_B <- GetLogLik(tissue_B, data_B$genotypes_test, data_B$expression_test[, 2])
+likelihoods_B <- GetLogLik(tissue_B, data_B$genotypes_test, data_B$expression_test)
 
-cat("\n\n")
+cat("\n")
 
 # Calculate p-values for each pair of baseline tissue and model selection test
 if (likelihoods_A$n == 0) {
