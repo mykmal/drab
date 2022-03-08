@@ -52,7 +52,7 @@ EXPRESSION_B1=$(cat temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half1.v8.EUR.normalize
 EXPRESSION_A2=$(cat temp/${TISSUE_A}.${BATCH}/${TISSUE_A}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
 EXPRESSION_B2=$(cat temp/${TISSUE_B}.${BATCH}/${TISSUE_B}_half2.v8.EUR.normalized_expression.bed | awk -v i=${ID} '$4 == i')
 if ([ -z "${EXPRESSION_A1}" ] || [ -z "${EXPRESSION_B1}" ] || [ -z "${EXPRESSION_A2}" ] || [ -z "${EXPRESSION_B2}" ]); then
-printf "Expression data not found. Skipping gene.\n"
+printf "Expression data not found. Skipping gene.\n\n"
 continue
 fi
 

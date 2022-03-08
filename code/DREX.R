@@ -146,7 +146,7 @@ CovarAdjust <- function(tissue, plink_path)
 ElasticNetSelection <- function(genos, pheno, alpha = 0.5)
 {
   enet_model <- glmnet::cv.glmnet(x = as.matrix(genos), y = as.matrix(pheno), alpha = alpha, nfold = 5, intercept = TRUE, standardize = FALSE)
-  eqtls <- rownames(coef(enet_model, s = "lambda.1se"))[coef(enet_model, s = "lambda.min")[, 1] != 0]
+  eqtls <- rownames(coef(enet_model, s = "lambda.1se"))[coef(enet_model, s = "lambda.1se")[, 1] != 0]
   
   return(eqtls[-1])
 }
@@ -175,12 +175,12 @@ GetLogLik <- function(tissue, genotypes, expression)
   if (ncol(dosages_A) > 1) {
     tmp <- cor(dosages_A)
     tmp[!lower.tri(tmp)] <- 0
-    dosages_A <- dosages_A[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
+    dosages_A <- dosages_A[, apply(tmp, 2, function(x) all(abs(x) < 0.8, na.rm = TRUE))]
   }
   if (ncol(dosages_B) > 1) {
     tmp <- cor(dosages_B)
     tmp[!lower.tri(tmp)] <- 0
-    dosages_B <- dosages_B[, apply(tmp, 2, function(x) all(abs(x) <= 0.9, na.rm = TRUE))]
+    dosages_B <- dosages_B[, apply(tmp, 2, function(x) all(abs(x) < 0.8, na.rm = TRUE))]
   }
   
   # Scale dosages
