@@ -16,12 +16,12 @@ mkdir genotypes logs output plink reference temp
 ```
 > install.packages(c("BEDMatrix", "glmnet", "insight"))
 ```
-* Download plink to the `drex/plink` folder. We used plink v1.90b6.24 64-bit (6 Jun 2021).
+* Download plink to the `drex/plink` folder. We used plink v1.90b6.25 64-bit (5 Mar 2022).
 ```
 cd plink
-wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20210606.zip
-unzip plink_linux_x86_64_20210606.zip
-rm plink_linux_x86_64_20210606.zip
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220305.zip
+unzip plink_linux_x86_64_20220305.zip
+rm plink_linux_x86_64_20220305.zip
 ```
 * Modify each of the files in `drex/scripts`, replacing `/path/to/drex` right below the HPC directives with the full path to your main `drex` folder. Also replace the HPC directives with appropriate ones for your HPC cluster. No other changes are needed, unless you want to adapt the workflow to your custom use case.
 
