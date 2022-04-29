@@ -1,73 +1,122 @@
 # DREX: Differential Regulation of EXpression
 
-This guide walks you through performing the drex workflow on European subjects data from the Genotype-Tissue Expression (GTEx) Project v8 release, as described in our paper. If using drex on your own data, make sure that it is formatted analogously to the GTEx data.
+DREX is an R package for identifying genes with tissue-specific genetic regulation of expression. The documentation below covers DREX installation, required input data, and usage. We also provide an appendix with information on how to obtain the data used in our paper.
 
-**Note:** The drex workflow is designed to be run on a linux HPC system and all provided commands are for bash (with the exception of a few R commands, which are prefaced by the `>` symbol).
+**Note:** The DREX workflow is designed to be run on a linux HPC system and all provided commands are for bash (with the exception of a few R commands, which are prefaced by the `>` symbol).
 
 ## Setup
 
-* First, clone the drex repository and create the required folder structure.
+* First, clone the DREX repository and create the required folder structure.
 ```
 git clone https://github.com/MykMal/drex.git
 cd drex
-mkdir genotypes logs output plink reference temp
+mkdir annotations covariates expression genotypes logs output plink
 ```
-* Launch R and install the packages BEDMatrix, glmnet, and insight. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, glmnet 4.1.3, and insight 0.16.0.
+* Launch R and install the packages CompQuadForm, BEDMatrix, and glmnet. We used R v4.1.0 x86_64, CompQuadForm 1.4.3, BEDMatrix 2.0.3, and glmnet 4.1.4.
 ```
-> install.packages(c("BEDMatrix", "glmnet", "insight"))
+> install.packages(c("BEDMatrix", "glmnet"))
 ```
-* Download plink to the `drex/plink` folder. We used plink v1.90b6.25 64-bit (5 Mar 2022).
+* Download plink to the `drex/plink` folder. We used plink v1.90b6.26 64-bit (2 Apr 2022).
 ```
 cd plink
-wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220305.zip
-unzip plink_linux_x86_64_20220305.zip
-rm plink_linux_x86_64_20220305.zip
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
+unzip plink_linux_x86_64_20220402.zip
+rm plink_linux_x86_64_20220402.zip
 ```
-* Modify each of the files in `drex/scripts`, replacing `/path/to/drex` right below the HPC directives with the full path to your main `drex` folder. Also replace the HPC directives with appropriate ones for your HPC cluster. No other changes are needed, unless you want to adapt the workflow to your custom use case.
+* Each of the `*.sh` files in `drex/scripts` is a shell script prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of each SLURM script as appropriate for your HPC cluster. In particular, be sure to set the `--mail-user` flag to your own email address and the `--partition` flag to the list of SLURM partitions on your cluster. The remaining commands may be left at their defaults.
 
-## Download and prepare data
+## Input data formats
 
-Some data sets are available from the publicly-accessible [GTEx portal](https://www.gtexportal.org/home/), while others require General Research Use approval through [dbGaP](https://www.ncbi.nlm.nih.gov/gap/).
+The subsections below explain the files and file formats that DREX expects. All of the files mentioned below are required.
+
+### Gene annotations
+
+DREX requires a gene annotation file listing all of the genes on which it should run. This has to be a plain-text, tab-delimited file without a header line. Each line should contain information for a single gene, with the following five fields:
+
+1. Gene name
+2. Gene ID (e.g. from ENSEMBL)
+3. Chromosome (with or without the chr prefix)
+4. Start position (in base pairs)
+5. End position (in base pairs)
+
+For example, the lines for the first three guanylate binding protein genes would be
+```
+GBP1  ENSG00000117228.9   chr1  89052319  89065360
+GBP2  ENSG00000162645.12  chr1  89106132  89126114
+GBP3  ENSG00000117226.11	chr1  89006666  89022894
+```
+Save your gene annotation files with file names of your choice in `drex/annotations`.
+
+### Genotype data
+
+DREX requires individual-level whole genome sequencing data in plink bed/bim/fam format. After performing all desired quality control, save your fully-processed genotype data as `dosages.bed`, `dosages.bim`, and `dosages.fam` in `drex/genotypes`.
+
+### Gene expression data
+
+DREX requires individual-level gene expression data for each tissue of interest, and it is assumed that the RNA-Seq values have already been fully processed and normalized. Expression data should be in tissue-specific, plain-text, tab-delimited files that begin with a header line. Each line should contain information for a single individual with family ID in the first field, within-family ID in the second field, and per-gene expression levels in the remaining fields. For example, the first three lines might be
+```
+FID IID       ENSG00000117228.9     ENSG00000162645.12  ENSG00000117226.11
+0   indivA    -0.083051769477432    0.808844404113396   1.31169125330214
+0   indivB    0.00672624465727554   -1.09866518781071   0.350055616620479
+```
+Use the naming convention `<tissue>.expression_matrix.txt` and save all of the gene expression files in `drex/expression`.
+
+**Note:** The FIDs and IIDs must be consistent with those used for the genotype data, while the gene IDs in the header line must be consistent with those used in the gene annotation file.
+
+### Expression covariates
+
+The format for expression covariates is analogous to the format for gene expression described above. Covariates should be in tissue-specific, plain-text, tab-delimited files that begin with a header line. Each line should contain information for a single individual with family ID in the first field, within-family ID in the second field, and covariates in the remaining fields. For example, the first three lines might be
+```
+FID IID       PC1       PC2       InferredCov           pcr
+0   indivA    0.0147    -0.0072   0.0262378174811602    1
+0   indivB    0.0161    0.0037    -0.0514548756182194   1
+```
+Use the naming convention `<tissue>.expression_covariates.txt` and save all of the covariate files in `drex/covariates`.
+
+**Note:** The FIDs and IIDs must be consistent with those used in the gene expression files.
+
+## Running DREX
+
+To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
+```
+sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",DREX=$(pwd) scripts/run_drex.sh
+```
+In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file.
+
+The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-separated, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
+
+1. Gene name
+2. Gene ID (e.g. from ENSEMBL)
+3. The likelihood-ratio test p-value
+4. The distribution-free test p-value
+
+If the p-values for a given gene are significant, then we conclude that the genetic regulation of that gene's expression is significantly different between the two tissues.
+
+**Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before inference.
+
+## Appendix: download and prepare GTEx data
+
+First, create the folder `drex/raw` to store the unprocessed GTEx data sets. This folder may be safely deleted after completing all of the steps in this section.
 
 From the **GTEx Analysis V8 (dbGaP Accession phs000424.v8.p2)** section of https://www.gtexportal.org/home/datasets, download the following files:
 
 * `GTEx_Analysis_v8_eQTL_EUR.tar` (under the sub-heading "Single-Tissue cis-QTL Data")  
-Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to the main `drex` folder. (The other folder in the tar is not needed.)
+Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to `drex/raw`. (The other folder in the tar is not needed.)
 * `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (under the sub-heading "Reference")  
-Uncompress this file and move it to the `drex/reference` folder.
+Uncompress this file and move it to `drex/raw`.
 * `gencode.v26.GRCh38.genes.gtf` (under the sub-heading "Reference")  
-Move this file to the `drex/reference` folder.
+Move this file to `drex/raw`.
 
-After obtaining access to the GTEx data in dbGaP (accession phs000424.v8.p2), follow the dbGaP documentation to download the following files:
+After obtaining access to the GTEx data in [dbGaP](https://www.ncbi.nlm.nih.gov/gap/) (accession phs000424.v8.p2), follow the dbGaP documentation to download the following files:
 
 * `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`  
-Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to the `drex/genotypes` folder. (The other files in the tar are not needed.)
+Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to `drex/raw`. (The other files in the tar are not needed.)
 * `phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz`  
-Uncompress this file and move it to the `drex/reference` folder.
+Uncompress this file and move it to `drex/raw`.
 
-Next, run `scripts/prepare_data.sh`. This will reformat the GTEx covariate data to a plink-compatible format, create gene annotation files with chromosome and position information, and perform quality control on the GTEx genotype data.
-
-Optionally, also run `scripts/split_data.sh` to randomly split the expression and covariate data for any tissue (specified within the script) into 1/2, 1/2 and 1/3, 2/3 partitions. You can then specify the partitions as separate "tissues" in drex to perform a null test.
-
-## Run drex
-
-As described in our paper, the drex method consists of three stages:
-
-1. Select tissue-specific cis-eQTLs.
-1. Train tissue-specific models that predict gene expression using the cis-eQTLs from the previous step as features.
-1. Perform a non-nested model selection test on the trained prediction models.
-
-All three stages are performed by running `scripts/run_drex.sh`. Before running it, set the `TISSUE_A` and `TISSUE_B` environmental variables in the script to your desired tissues (these are declared right below the HPC directives). By default drex only tests for tissue-specific regulation of protein-coding genes; if you wish to consider all available genes, then set the `PC_ONLY` environmental variable in the script to "FALSE". Note that this script will only run as a batch array job. If using SLURM, submit it with the command
+To prepare the GTEx data for use with DREX, from your main `drex` folder run
 ```
-sbatch --array=1-13 scripts/run_drex.sh
+sbatch --export=DREX=$(pwd) scripts/prepare_data.sh
 ```
-The second number in the array flag above specifies the upper bound for the number of genes (in thousands) that you want to consider. For example, to run drex on all protein-coding genes in GTEx v8 you need to specify `--array=1-13` because there are 12,438 protein-coding genes in the GTEx gene model. To run drex on all genes in GTEx v8, you should instead specify `--array=1-36` because the GTEx data has annotations for 35,036 genes in total.
-
-When the process finishes, run
-```
-printf "gene_name\tgene_id\t${TISSUE_A}_lrt\t${TISSUE_B}_lrt\t${TISSUE_A}_dft\t${TISSUE_B}_dft\n" | cat - temp/${TISSUE_A}_${TISSUE_B}* > output/${TISSUE_A}_${TISSUE_B}.txt
-rm temp/${TISSUE_A}_${TISSUE_B}*
-```
-to concatenate the batch array results into a single file. The final output `drex/output/<TISSUE_A>_<TISSUE_B>.txt` is a tab-separated file with one gene per row. The columns specify the gene name, the gene Ensembl ID, the likelihood-ratio test p-value with `TISSUE_A` as the baseline, the likelihood-ratio test p-value with `TISSUE_B` as the baseline, the distribution-free test p-value with `TISSUE_A` as the baseline, and the distribution-free test p-value with `TISSUE_B` as the baseline. If the p-values for a given gene are significant, then we conclude that the genetic regulation of that gene's expression is significantly different between `TISSUE_A` and `TISSUE_B`.  
-**Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before inference.
+This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the gene expression data and expression covariates.
 
