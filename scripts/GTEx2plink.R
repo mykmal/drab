@@ -67,7 +67,7 @@ for (tissue in tissues) {
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
   
   # Transform covariates and add FID column
-  covariates <- read.table(file = paste("raw/expression_covariates", tissue, ".v8.EUR.covariates.txt", sep = ""))
+  covariates <- read.table(file = paste("raw/expression_covariates/", tissue, ".v8.EUR.covariates.txt", sep = ""))
   covariates <- as.data.frame(t(covariates))
   FID <- matrix(0L, nrow = nrow(covariates), ncol = 1)
   covariates <- cbind(FID, covariates)

@@ -12,7 +12,7 @@ git clone https://github.com/MykMal/drex.git
 cd drex
 mkdir annotations covariates expression genotypes logs output plink
 ```
-* Launch R and install the packages CompQuadForm, BEDMatrix, and glmnet. We used R v4.1.0 x86_64, CompQuadForm 1.4.3, BEDMatrix 2.0.3, and glmnet 4.1.4.
+* Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1.4.
 ```
 > install.packages(c("BEDMatrix", "glmnet"))
 ```
@@ -41,9 +41,9 @@ DREX requires a gene annotation file listing all of the genes on which it should
 
 For example, the lines for the first three guanylate binding protein genes would be
 ```
-GBP1  ENSG00000117228.9   chr1  89052319  89065360
-GBP2  ENSG00000162645.12  chr1  89106132  89126114
-GBP3  ENSG00000117226.11	chr1  89006666  89022894
+GBP1	ENSG00000117228.9	chr1	89052319	89065360
+GBP2	ENSG00000162645.12	chr1	89106132	89126114
+GBP3	ENSG00000117226.11	chr1	89006666	89022894
 ```
 Save your gene annotation files with file names of your choice in `drex/annotations`.
 
@@ -55,21 +55,21 @@ DREX requires individual-level whole genome sequencing data in plink bed/bim/fam
 
 DREX requires individual-level gene expression data for each tissue of interest, and it is assumed that the RNA-Seq values have already been fully processed and normalized. Expression data should be in tissue-specific, plain-text, tab-delimited files that begin with a header line. Each line should contain information for a single individual with family ID in the first field, within-family ID in the second field, and per-gene expression levels in the remaining fields. For example, the first three lines might be
 ```
-FID IID       ENSG00000117228.9     ENSG00000162645.12  ENSG00000117226.11
-0   indivA    -0.083051769477432    0.808844404113396   1.31169125330214
-0   indivB    0.00672624465727554   -1.09866518781071   0.350055616620479
+FID	IID	ENSG00000117228.9	ENSG00000162645.12	ENSG00000117226.11
+0	indivA	-0.083051769477432	0.808844404113396	1.31169125330214
+0	indivB	0.00672624465727554	-1.09866518781071	0.350055616620479
 ```
 Use the naming convention `<tissue>.expression_matrix.txt` and save all of the gene expression files in `drex/expression`.
 
-**Note:** The FIDs and IIDs must be consistent with those used for the genotype data, while the gene IDs in the header line must be consistent with those used in the gene annotation file.
+**Note:** The FIDs and IIDs must be consistent with those used for the genotype data, while the gene IDs in the header line must be consistent with those used in the gene annotation files.
 
 ### Expression covariates
 
 The format for expression covariates is analogous to the format for gene expression described above. Covariates should be in tissue-specific, plain-text, tab-delimited files that begin with a header line. Each line should contain information for a single individual with family ID in the first field, within-family ID in the second field, and covariates in the remaining fields. For example, the first three lines might be
 ```
-FID IID       PC1       PC2       InferredCov           pcr
-0   indivA    0.0147    -0.0072   0.0262378174811602    1
-0   indivB    0.0161    0.0037    -0.0514548756182194   1
+FID	IID	PC1	PC2		InferredCov		pcr
+0	indivA	0.0147	-0.0072	0.0262378174811602	1
+0	indivB	0.0161	0.0037		-0.0514548756182194	1
 ```
 Use the naming convention `<tissue>.expression_covariates.txt` and save all of the covariate files in `drex/covariates`.
 
@@ -77,13 +77,13 @@ Use the naming convention `<tissue>.expression_covariates.txt` and save all of t
 
 ## Running DREX
 
-To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
+To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags as shown below. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
 ```
 sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",DREX=$(pwd) scripts/run_drex.sh
 ```
 In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file.
 
-The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-separated, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
+The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 
 1. Gene name
 2. Gene ID (e.g. from ENSEMBL)
@@ -92,7 +92,7 @@ The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (H
 
 If the p-values for a given gene are significant, then we conclude that the genetic regulation of that gene's expression is significantly different between the two tissues.
 
-**Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before inference.
+**Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before drawing conclusions.
 
 ## Appendix: download and prepare GTEx data
 
