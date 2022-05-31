@@ -5,7 +5,7 @@
 #SBATCH --mem=64g
 #SBATCH --time=1:00:00
 #SBATCH --tmp=10g
-#SBATCH --partition=amd512,amd2tb,ram256g,ram1t
+#SBATCH --partition=agsmall,ag2tb
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=scientist@university.edu
 #SBATCH -o logs/%j.out
