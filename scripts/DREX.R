@@ -159,13 +159,24 @@ LRT <- function(ll_A, ll_B)
   return(lrt_stat)
 }
 
+# Compute the distribution-free test statistic.
+# Namely, we use the statistic described in Section 2.2 of Clarke (2007), accessible at https://doi.org/10.1093/pan/mpm004.
+DFT <- function(ll_A, ll_B)
+{
+  # Eq. 7 in Clarke (2007)
+  d <- ll_A - ll_B
+  B <- sum(d > 0)
+  
+  return(B)
+}
+
 ######################################################################
 # MAIN PROGRAM
 ######################################################################
 
 # Check that all required arguments are supplied
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 6) {
+if (length(args) != 7) {
   cat("ERROR: missing arguments.\n", file = stderr())
   q()
 }
@@ -176,8 +187,7 @@ tissue_A <- args[3]
 tissue_B <- args[4]
 job <- args[5]
 out_name <- args[6]
-
-replicates <- 1000
+replicates <- args[7]
 
 # Import expression and genotype data, adjust them for covariates, and normalize them
 data_A_train <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part1", sep = ""), paste("temp/", job, "/", tissue_A, "_part1.expression_covariates.txt", sep = ""))
@@ -200,24 +210,31 @@ if (length(likelihoods_A) != length(likelihoods_B)) {
   q()
 }
 
-# Calculate the test statistic
+# Calculate the test statistics
 lrt_stat <- LRT(likelihoods_A, likelihoods_B)
+dft_stat <- DFT(likelihoods_A, likelihoods_B)
 
-# Approximate the distribution of the statistic under the null of no tissue-specific differences in regulation.
+# Approximate the distribution of each statistic under the null of no tissue-specific differences in regulation.
 # Namely, we perform a permutation test by independently shuffling the prediction log-likelihoods for each individual.
 
 likelihoods <- cbind(likelihoods_A, likelihoods_B)
 lrt_stat_permutations <- numeric(replicates)
+dft_stat_permutations <- numeric(replicates)
 
 for (i in seq_len(replicates)) {
   likelihoods_resampled <- t(apply(likelihoods, 1, function(x) { sample(x) }))
   lrt_stat_permutations[i] <- LRT(likelihoods_resampled[, 1], likelihoods_resampled[, 2])
+  dft_stat_permutations[i] <- DFT(likelihoods_resampled[, 1], likelihoods_resampled[, 2])
 }
 
 lrt_pval <- sum(abs(lrt_stat_permutations) >= abs(lrt_stat)) / replicates
 
-# @@ temporary, since I haven't implemented the DFT yet
-dft_pval <- 1L
+dft_stat_translated <- 2 * mean(dft_stat_permutations) - dft_stat
+if (dft_stat >= mean(dft_stat_permutations)) {
+  dft_pval <- (sum(dft_stat_permutations >= dft_stat) + sum(dft_stat_permutations <= dft_stat_translated)) / replicates
+} else {
+  dft_pval <- (sum(dft_stat_permutations <= dft_stat) + sum(dft_stat_permutations >= dft_stat_translated)) / replicates
+}
 
 # Append the test results to the output file
 results <- paste(name, id, lrt_pval, dft_pval, sep = "\t")

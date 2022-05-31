@@ -79,9 +79,9 @@ Use the naming convention `<tissue>.expression_covariates.txt` and save all of t
 
 To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags as shown below. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
 ```
-sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",DREX=$(pwd) scripts/run_drex.sh
+sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",PERMUTATIONS="1000",DREX=$(pwd) scripts/run_drex.sh
 ```
-In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file.
+In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file. If desired, you can also change the default value of 1,000 permutations for approximating the null distribution.
 
 The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 

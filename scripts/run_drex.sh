@@ -90,7 +90,7 @@ rm -rf temp/${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
-Rscript scripts/DREX.R ${NAME} ${ID} ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID} ${GENES}
+Rscript scripts/DREX.R ${NAME} ${ID} ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID} ${GENES} ${REPLICATES}
 
 rm -rf temp/${SLURM_JOB_ID}/${NAME}
 
