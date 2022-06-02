@@ -177,13 +177,6 @@ DFT <- function(ll_A, ll_B)
 # MAIN PROGRAM
 ######################################################################
 
-# Check that all required arguments are supplied
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 7) {
-  cat("ERROR: missing arguments.\n", file = stderr())
-  q()
-}
-
 name <- args[1]
 id <- args[2]
 tissue_A <- args[3]
@@ -196,6 +189,13 @@ replicates <- args[7]
 data_A_train <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part1", sep = ""), paste("temp/", job, "/", tissue_A, "_part1.expression_covariates.txt", sep = ""))
 data_A_test <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part2", sep = ""), paste("temp/", job, "/", tissue_A, "_part2.expression_covariates.txt", sep = ""))
 data_B <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_B, sep = ""), paste("covariates/", tissue_B, ".expression_covariates.txt", sep = ""))
+
+# Skip the gene if all variation in expression was explained by the covariates
+if ((sd(data_A_train$expression$value) == 0) || (sd(data_A_test$expression$value) == 0) || (sd(data_B$expression$value) == 0)) {
+  cat(paste("WARNING: All variation in the expression of gene", id, "is explained by covariates.\n"), file = stderr())
+  lrt_pval <- "NA"
+  dft_pval <- "NA"
+} else {
 
 # Remove SNPs that aren't present in all of the data sets
 all_snps <- Reduce(intersect, list(colnames(data_A_train$genotypes), colnames(data_A_test$genotypes), colnames(data_B$genotypes)))
@@ -243,6 +243,8 @@ if (dft_stat >= mean(dft_stat_permutations)) {
   dft_pval <- (sum(dft_stat_permutations >= dft_stat) + sum(dft_stat_permutations <= dft_stat_translated)) / replicates
 } else {
   dft_pval <- (sum(dft_stat_permutations <= dft_stat) + sum(dft_stat_permutations >= dft_stat_translated)) / replicates
+}
+
 }
 
 # Append the test results to the output file
