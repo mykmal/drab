@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64g
-#SBATCH --time=1:00:00
+#SBATCH --time=2:00:00
 #SBATCH --tmp=10g
 #SBATCH --partition=agsmall,ag2tb
 #SBATCH --mail-type=ALL
@@ -29,7 +29,7 @@ plink --vcf raw/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Fre
           --make-bed \
           --out TEMP1
 
-Rscript scripts/ExtractEUR.R
+Rscript --vanilla scripts/ExtractEUR.R
 
 plink --bfile TEMP1 \
           --keep EUR_samples.txt \
@@ -84,5 +84,5 @@ rm ambiguous_snps.txt
 rm varid_rsid_map.txt
 rm missing_rsids.txt
 
-Rscript scripts/GTEx2plink.R
+Rscript --vanilla scripts/GTEx2plink.R
 

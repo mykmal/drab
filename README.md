@@ -10,7 +10,7 @@ DREX is an R package for identifying genes with tissue-specific genetic regulati
 ```
 git clone https://github.com/MykMal/drex.git
 cd drex
-mkdir annotations covariates expression genotypes logs output plink
+mkdir annotations covariates expression genotypes logs output plink temp
 ```
 * Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1.4.
 ```
@@ -67,9 +67,9 @@ Use the naming convention `<tissue>.expression_matrix.txt` and save all of the g
 
 The format for expression covariates is analogous to the format for gene expression described above. Covariates should be in tissue-specific, plain-text, tab-delimited files that begin with a header line. Each line should contain information for a single individual with family ID in the first field, within-family ID in the second field, and covariates in the remaining fields. For example, the first three lines might be
 ```
-FID	IID	PC1	PC2		InferredCov		pcr
+FID	IID	PC1	PC2	InferredCov	pcr
 0	indivA	0.0147	-0.0072	0.0262378174811602	1
-0	indivB	0.0161	0.0037		-0.0514548756182194	1
+0	indivB	0.0161	0.0037	-0.0514548756182194	1
 ```
 Use the naming convention `<tissue>.expression_covariates.txt` and save all of the covariate files in `drex/covariates`.
 

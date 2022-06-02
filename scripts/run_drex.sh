@@ -25,7 +25,7 @@ TISSUE_A=${TISSUE_B}
 TISSUE_B=${TISSUE_TEMP}
 fi
 
-Rscript scripts/SplitData.R ${TISSUE_A} temp/${SLURM_JOB_ID}
+Rscript --vanilla scripts/SplitData.R ${TISSUE_A} temp/${SLURM_JOB_ID}
 
 read -r HEADER_A < expression/${TISSUE_A}.expression_matrix.txt
 read -r HEADER_B < expression/${TISSUE_B}.expression_matrix.txt
@@ -48,6 +48,10 @@ fi
 
 ((END=${END}+500000))
 
+awk 'NR > 1 {print $1 "\t" $2}' temp/${SLURM_JOB_ID}/${TISSUE_A}_part1.expression_matrix.txt > temp/${SLURM_JOB_ID}/${TISSUE_A}_part1.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' temp/${SLURM_JOB_ID}/${TISSUE_A}_part2.expression_matrix.txt > temp/${SLURM_JOB_ID}/${TISSUE_A}_part2.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' expression/${TISSUE_B}.expression_matrix.txt > temp/${SLURM_JOB_ID}/${TISSUE_A}.individuals.txt
+
 plink --bfile genotypes/dosages \
           --silent \
           --allow-no-sex \
@@ -56,7 +60,7 @@ plink --bfile genotypes/dosages \
           --to-bp ${END} \
           --pheno temp/${SLURM_JOB_ID}/${TISSUE_A}_part1.expression_matrix.txt \
           --pheno-name ${ID} \
-          --keep temp/${SLURM_JOB_ID}/${TISSUE_A}_part1.expression_matrix.txt \
+          --keep temp/${SLURM_JOB_ID}/${TISSUE_A}_part1.individuals.txt \
           --make-bed \
           --out temp/${SLURM_JOB_ID}/${NAME}/${TISSUE_A}_part1
 
@@ -68,7 +72,7 @@ plink --bfile genotypes/dosages \
           --to-bp ${END} \
           --pheno temp/${SLURM_JOB_ID}/${TISSUE_A}_part2.expression_matrix.txt \
           --pheno-name ${ID} \
-          --keep temp/${SLURM_JOB_ID}/${TISSUE_A}_part2.expression_matrix.txt \
+          --keep temp/${SLURM_JOB_ID}/${TISSUE_A}_part2.individuals.txt \
           --make-bed \
           --out temp/${SLURM_JOB_ID}/${NAME}/${TISSUE_A}_part2
 
@@ -80,7 +84,7 @@ plink --bfile genotypes/dosages \
           --to-bp ${END} \
           --pheno expression/${TISSUE_B}.expression_matrix.txt \
           --pheno-name ${ID} \
-          --keep expression/${TISSUE_B}.expression_matrix.txt \
+          --keep temp/${SLURM_JOB_ID}/${TISSUE_A}.individuals.txt \
           --make-bed \
           --out temp/${SLURM_JOB_ID}/${NAME}/${TISSUE_B}
 
@@ -90,7 +94,7 @@ rm -rf temp/${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
-Rscript scripts/DREX.R ${NAME} ${ID} ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID} ${GENES} ${REPLICATES}
+Rscript --vanilla scripts/DREX.R ${NAME} ${ID} ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID} ${GENES} ${PERMUTATIONS}
 
 rm -rf temp/${SLURM_JOB_ID}/${NAME}
 

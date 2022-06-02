@@ -65,11 +65,12 @@ CovarAdjust <- function(plink_path, covar_path)
   
   # Subset to intersection of individuals for whom genotype/expression and covariate data both exist
   expression_and_covars <- merge(expression, covars, by = 0)
+  rownames(expression_and_covars) <- expression_and_covars$Row.names
+  expression_and_covars <- subset(expression_and_covars, select = -Row.names)
   
   # Adjust expression values for covariates
-  expression <- summary(lm(value ~ ., data = expression_and_covars))$residuals
+  expression <- as.data.frame(summary(lm(value ~ ., data = expression_and_covars))$residuals)
   colnames(expression) <- "value"
-  rownames(expression) <- rownames(expression_and_covars)
   
   # Normalize the genotypes and the adjusted expression values
   genotypes <- PopulationScale(genotypes)
@@ -80,6 +81,8 @@ CovarAdjust <- function(plink_path, covar_path)
   
   # Subset to intersection of individuals for whom genotype/expression and covariate data both exist
   genotypes_and_covars <- merge(genotypes, covars, by = 0)
+  rownames(genotypes_and_covars) <- genotypes_and_covars$Row.names
+  genotypes_and_covars <- subset(genotypes_and_covars, select = -Row.names)
   
   # Adjust normalized genotypes for covariates
   for (snp in colnames(genotypes)) {
