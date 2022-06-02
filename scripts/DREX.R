@@ -141,7 +141,7 @@ GetPredictions <- function(fit, genotypes, expression)
 {
   expression_predicted <- predict(fit$model, newx = as.matrix(genotypes), s = fit$lambda)
   sigma <- sqrt(sum((expression - expression_predicted)^2) / length(expression))
-  log_liks <- log(dnorm(x = expression, mean = expression_predicted, sd = sigma))
+  log_liks <- log(dnorm(expression$value, mean = expression_predicted, sd = sigma))
   
   return(log_liks)
 }
