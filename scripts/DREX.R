@@ -177,6 +177,8 @@ DFT <- function(ll_A, ll_B)
 # MAIN PROGRAM
 ######################################################################
 
+args <- commandArgs(trailingOnly = TRUE)
+
 name <- args[1]
 id <- args[2]
 tissue_A <- args[3]
