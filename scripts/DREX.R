@@ -197,6 +197,12 @@ data_A_train <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part
 data_A_test <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part2", sep = ""), paste("temp/", job, "/", tissue_A, "_part2.expression_covariates.txt", sep = ""))
 data_B <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_B, sep = ""), paste("covariates/", tissue_B, ".expression_covariates.txt", sep = ""))
 
+# Remove SNPs that aren't present in all of the data sets
+all_snps <- Reduce(intersect, list(colnames(data_A_train$genotypes), colnames(data_A_test$genotypes), colnames(data_B$genotypes)))
+data_A_train$genotypes <- subset(data_A_train$genotypes, select = all_snps)
+data_A_test$genotypes <- subset(data_A_test$genotypes, select = all_snps)
+data_B$genotypes <- subset(data_B$genotypes, select = all_snps)
+
 # Train elastic net models for each tissue
 elnet_A <- ElasticNetBIC(data_A_train$genotypes, data_A_train$expression)
 elnet_B <- ElasticNetBIC(data_B$genotypes, data_B$expression)
