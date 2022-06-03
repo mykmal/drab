@@ -140,8 +140,9 @@ ElasticNetBIC <- function(genos, pheno, alpha = 0.5)
 GetPredictions <- function(fit, genotypes, expression)
 {
   expression_predicted <- predict(fit$model, newx = as.matrix(genotypes), s = fit$lambda)
-  sigma <- sqrt(sum((expression - expression_predicted)^2) / length(expression))
-  log_liks <- log(dnorm(expression$value, mean = expression_predicted, sd = sigma))
+  residuals <- expression - expression_predicted
+  sigma <- sqrt(sum(residuals^2) / length(expression))
+  log_liks <- dnorm(residuals, mean = 0, sd = sigma, log = TRUE)
   
   return(log_liks)
 }
@@ -214,12 +215,6 @@ likelihoods_A <- GetPredictions(elnet_A, data_A_test$genotypes, data_A_test$expr
 
 # Compute prediction log-likelihoods on data_A_test for model trained on data_B
 likelihoods_B <- GetPredictions(elnet_B, data_A_test$genotypes, data_A_test$expression)
-
-# The prediction log-likelihoods should have the same length (just a sanity check)
-if (length(likelihoods_A) != length(likelihoods_B)) {
-  cat(paste("ERROR: Testing data is inconsistent. Skipping gene", id, ".\n"), file = stderr())
-  q()
-}
 
 # Calculate the test statistics
 lrt_stat <- LRT(likelihoods_A, likelihoods_B)
