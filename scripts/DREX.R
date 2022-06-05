@@ -140,15 +140,15 @@ ElasticNetBIC <- function(genos, pheno, alpha = 0.5)
 GetPredictions <- function(fit, genotypes, expression)
 {
   expression_predicted <- predict(fit$model, newx = as.matrix(genotypes), s = fit$lambda)
-  residuals <- expression - expression_predicted
-  sigma <- sqrt(sum(residuals^2) / length(expression))
+  residuals <- expression$value - expression_predicted
+  sigma <- sqrt(sum(residuals^2) / length(residuals))
   log_liks <- dnorm(residuals, mean = 0, sd = sigma, log = TRUE)
   
   return(log_liks)
 }
 
-# Compute the likelihood-ratio test statistic.
-# Namely, we use the statistic described in Section 5 of Vuong (1989), accessible at https://www.jstor.org/stable/1912557.
+# Compute the likelihood ratio test statistic.
+# Namely, we use the statistic described in Section 5 of Vuong (1989), accessible at https://doi.org/10.2307/1912557.
 LRT <- function(ll_A, ll_B)
 {
   # Eq. 3.1 in Vuong (1989)
@@ -193,13 +193,6 @@ data_A_train <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part
 data_A_test <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part2", sep = ""), paste("temp/", job, "/", tissue_A, "_part2.expression_covariates.txt", sep = ""))
 data_B <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_B, sep = ""), paste("covariates/", tissue_B, ".expression_covariates.txt", sep = ""))
 
-# Skip the gene if all variation in expression was explained by the covariates
-if ((sd(data_A_train$expression$value) == 0) || (sd(data_A_test$expression$value) == 0) || (sd(data_B$expression$value) == 0)) {
-  cat(paste("WARNING: All variation in the expression of gene", id, "is explained by covariates.\n"), file = stderr())
-  lrt_pval <- "NA"
-  dft_pval <- "NA"
-} else {
-
 # Remove SNPs that aren't present in all of the data sets
 all_snps <- Reduce(intersect, list(colnames(data_A_train$genotypes), colnames(data_A_test$genotypes), colnames(data_B$genotypes)))
 data_A_train$genotypes <- subset(data_A_train$genotypes, select = all_snps)
@@ -233,15 +226,19 @@ for (i in seq_len(replicates)) {
   dft_stat_permutations[i] <- DFT(likelihoods_resampled[, 1], likelihoods_resampled[, 2])
 }
 
-lrt_pval <- sum(abs(lrt_stat_permutations) >= abs(lrt_stat)) / replicates
+# Sometimes the likelihood ratio test statistic is not defined
+if (is.finite(lrt_stat) && all(is.finite(lrt_stat_permutations))) {
+  lrt_pval <- sum(abs(lrt_stat_permutations) >= abs(lrt_stat)) / replicates
+} else {
+  lrt_pval <- NA
+}
 
+# We expect the DFT distribution to be roughly binomial, so the 2-sided p-value calculation depends on whether lrt_stat is above or below the mean
 dft_stat_translated <- 2 * mean(dft_stat_permutations) - dft_stat
 if (dft_stat >= mean(dft_stat_permutations)) {
   dft_pval <- (sum(dft_stat_permutations >= dft_stat) + sum(dft_stat_permutations <= dft_stat_translated)) / replicates
 } else {
   dft_pval <- (sum(dft_stat_permutations <= dft_stat) + sum(dft_stat_permutations >= dft_stat_translated)) / replicates
-}
-
 }
 
 # Append the test results to the output file
