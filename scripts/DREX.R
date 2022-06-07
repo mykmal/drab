@@ -186,7 +186,7 @@ tissue_A <- args[3]
 tissue_B <- args[4]
 job <- args[5]
 out_name <- args[6]
-replicates <- args[7]
+replicates <- as.numeric(args[7])
 
 # Import expression and genotype data, adjust them for covariates, and normalize them
 data_A_train <- CovarAdjust(paste("temp/", job, "/", name, "/", tissue_A, "_part1", sep = ""), paste("temp/", job, "/", tissue_A, "_part1.expression_covariates.txt", sep = ""))
@@ -239,6 +239,11 @@ if (dft_stat >= mean(dft_stat_permutations)) {
   dft_pval <- (sum(dft_stat_permutations >= dft_stat) + sum(dft_stat_permutations <= dft_stat_translated)) / replicates
 } else {
   dft_pval <- (sum(dft_stat_permutations <= dft_stat) + sum(dft_stat_permutations >= dft_stat_translated)) / replicates
+}
+
+# Sometimes the distribution-free test is not applicable
+if (abs(dft_pval) > 1) {
+  dft_pval <- NA
 }
 
 # Append the test results to the output file
