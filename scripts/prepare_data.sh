@@ -54,7 +54,7 @@ plink --bfile TEMP4 \
           --make-bed \
           --out TEMP5
 
-awk -F '\t' '(NR > 1) && ($7 ~ /^rs/) {print $1 "\t" $7}' raw/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt > varid_rsid_map.txt
+awk -F '\t' '(NR > 1) && ($7 ~ /^rs/) && ($7 !~ /,/) {print $1 "\t" $7}' raw/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt > varid_rsid_map.txt
 
 plink --bfile TEMP5 \
           --update-name varid_rsid_map.txt \
