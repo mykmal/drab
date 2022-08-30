@@ -1,4 +1,3 @@
-# Full list of tissues included in GTEx
 tissues <-
   c(
     "Adipose_Subcutaneous",
@@ -54,7 +53,6 @@ tissues <-
 
 for (tissue in tissues) {
   
-  # Transform expression matrix and add FID column
   expression <- read.table(file = paste("raw/expression_matrices/", tissue, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
                            comment.char = "", check.names = FALSE)
   expression <- expression[-c(1,2,3)]
@@ -66,7 +64,6 @@ for (tissue in tissues) {
   write.table(expression, file = paste("expression/", tissue, ".expression_matrix.txt", sep = ""),
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
   
-  # Transform covariates and add FID column
   covariates <- read.table(file = paste("raw/expression_covariates/", tissue, ".v8.EUR.covariates.txt", sep = ""))
   covariates <- as.data.frame(t(covariates))
   FID <- matrix(0L, nrow = nrow(covariates), ncol = 1)

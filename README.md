@@ -1,8 +1,8 @@
 # DREX: Differential Regulation of EXpression
 
-DREX is an R package for identifying genes with tissue-specific genetic regulation of expression. The documentation below covers DREX installation, required input data, and usage. We also provide an appendix with information on how to obtain the data used in our paper.
+DREX is a tool for identifying genes with tissue-specific patterns of genetic regulation. The documentation below covers DREX installation, required input data, and usage. We also provide an appendix with information on how to obtain the data used in our paper.
 
-**Note:** The DREX workflow is designed to be run on a linux HPC system and all provided commands are for bash (with the exception of a few R commands, which are prefaced by the `>` symbol).
+**Note:** The DREX workflow is designed to be run on a linux HPC system through SLURM. No other platforms are currently supported.
 
 ## Setup
 
@@ -10,18 +10,17 @@ DREX is an R package for identifying genes with tissue-specific genetic regulati
 ```
 git clone https://github.com/MykMal/drex.git
 cd drex
-mkdir annotations covariates expression genotypes logs output plink temp
+mkdir annotations covariates expression genotypes logs output
 ```
 * Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1.4.
 ```
 > install.packages(c("BEDMatrix", "glmnet"))
 ```
-* Download plink to the `drex/plink` folder. We used plink v1.90b6.26 64-bit (2 Apr 2022).
+* Download plink to the main `drex` folder. We used plink v1.90b6.26 64-bit (2 Apr 2022).
 ```
-cd plink
 wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
 unzip plink_linux_x86_64_20220402.zip
-rm plink_linux_x86_64_20220402.zip
+rm plink_linux_x86_64_20220402.zip prettify toy*
 ```
 * Each of the `*.sh` files in `drex/scripts` is a shell script prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of each SLURM script as appropriate for your HPC cluster. In particular, be sure to set the `--mail-user` flag to your own email address and the `--partition` flag to the list of SLURM partitions on your cluster. The remaining commands may be left at their defaults.
 
@@ -79,18 +78,18 @@ Use the naming convention `<tissue>.expression_covariates.txt` and save all of t
 
 To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags as shown below. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
 ```
-sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",PERMUTATIONS="1000",DREX=$(pwd) scripts/run_drex.sh
+sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",DREX=$(pwd) scripts/run_drex.sh
 ```
-In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file. If desired, you can also change the default value of 1,000 permutations for approximating the null distribution.
+In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues and `all_genes` with the name of your annotation file.
 
 The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 
 1. Gene name
 2. Gene ID (e.g. from ENSEMBL)
-3. The likelihood-ratio test p-value
-4. The distribution-free test p-value
+3. The p-value for testing H~0~: the gene is regulated identically in both tissues 
+4. The p-value from a paired t-test for testing H~0~: the two expression imputation models have equal prediction loss
 
-If the p-values for a given gene are significant, then we conclude that the genetic regulation of that gene's expression is significantly different between the two tissues.
+If the DREX p-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two tissues.
 
 **Important:** The reported p-values are not corrected for multiple testing. A Bonferroni correction or some other appropriate family-wise error rate method should be applied before drawing conclusions.
 
