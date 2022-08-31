@@ -14,7 +14,7 @@ mkdir annotations covariates expression genotypes logs output
 ```
 * Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1.4.
 ```
-> install.packages(c("BEDMatrix", "glmnet"))
+install.packages(c("BEDMatrix", "glmnet"))
 ```
 * Download plink to the main `drex` folder. We used plink v1.90b6.26 64-bit (2 Apr 2022).
 ```
@@ -76,7 +76,7 @@ Use the naming convention `<tissue>.expression_covariates.txt` and save all of t
 
 ## Running DREX
 
-To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with the appropriate flags as shown below. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
+To run DREX, submit the `scripts/run_drex.sh` shell script as a SLURM job with `TISSUE_A`, `TISSUE_B`, and `GENES` as exported environment variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex`, run the command
 ```
 sbatch --export=TISSUE_A="Whole_Blood",TISSUE_B="Brain_Cortex",GENES="all_genes",DREX=$(pwd) scripts/run_drex.sh
 ```
@@ -85,9 +85,12 @@ In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your des
 The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue names and annotation file name you specified when running DREX.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 
 1. Gene name
-2. Gene ID (e.g. from ENSEMBL)
-3. The p-value for testing H~0~: the gene is regulated identically in both tissues 
-4. The p-value from a paired t-test for testing H~0~: the two expression imputation models have equal prediction loss
+2. Gene ID
+3. P-value for testing H_0: the gene is regulated identically in both tissues 
+4. P-value from a paired t-test for testing H_0: the tissue-specific expression imputation models have equal prediction loss
+5. Number of samples used to train expression imputation models for `TISSUE_A`
+6. Number of samples used to train expression imputation models for `TISSUE_B`
+7. Number of samples used to test the expression imputation models
 
 If the DREX p-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two tissues.
 
