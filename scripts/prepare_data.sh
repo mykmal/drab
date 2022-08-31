@@ -15,7 +15,7 @@ module load R/4.1.0
 
 cd ${DREX}
 
-awk '(NR > 6) && ($1 ~ /^chr[1-22]/) && ($3 == "gene") {print $16 "\t" $10 "\t" $1 "\t" $4 "\t" $5 "\t" $14}' raw/gencode.v26.GRCh38.genes.gtf | \
+awk '(NR > 6) && ($1 ~ /^chr[1-9]/) && ($3 == "gene") {print $16 "\t" $10 "\t" $1 "\t" $4 "\t" $5 "\t" $14}' raw/gencode.v26.GRCh38.genes.gtf | \
 tr -d ";\"" > annotations/all_genes.txt
 
 awk '$6 == "protein_coding" {print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5}' annotations/all_genes.txt > annotations/protein_coding_genes.txt
