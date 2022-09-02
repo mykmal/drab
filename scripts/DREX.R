@@ -85,7 +85,7 @@ TrainTest <- function(training_genotypes, training_expression, testing_genotypes
 {
   # Fit an elastic net regression model on the training data
   model <- glmnet::cv.glmnet(x = as.matrix(training_genotypes), y = as.matrix(training_expression),
-                                  family = "gaussian", alpha = 0.5, nfolds = 5, type.measure = "mse", standardize = FALSE, intercept = FALSE)
+                                  family = "gaussian", alpha = 0.5, nfolds = 5, type.measure = "mse", standardize = FALSE)
   
   # Get predictions for the model on the testing data
   predictions <- predict(model, newx = as.matrix(testing_genotypes), type = "response", s = "lambda.1se")
