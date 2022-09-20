@@ -22,7 +22,7 @@ Rscript --vanilla scripts/split_data.R ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID}
 read -r HEADER_A < expression/${TISSUE_A}.expression_matrix.txt
 read -r HEADER_B < expression/${TISSUE_B}.expression_matrix.txt
 
-while read -r NAME ID CHR START END; do
+while read -r NAME ID CHR START END ETC; do
 
 if ( [[ ${HEADER_A} != *"${ID}"* ]] || [[ ${HEADER_B} != *"${ID}"* ]] ); then
 printf "WARNING: expression data not found for ${ID}. Skipping gene.\n"
