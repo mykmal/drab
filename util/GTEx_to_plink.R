@@ -61,7 +61,7 @@ for (tissue in tissues) {
   expression <- cbind(FID, expression)
   expression[1, 1] <- "FID"
   expression[1, 2] <- "IID"
-  write.table(expression, file = paste("expression/", tissue, ".expression_matrix.txt", sep = ""),
+  write.table(expression, file = paste("expression/", tissue, ".expression.txt", sep = ""),
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
   
   covariates <- read.table(file = paste("raw/expression_covariates/", tissue, ".v8.EUR.covariates.txt", sep = ""))
@@ -70,7 +70,7 @@ for (tissue in tissues) {
   covariates <- cbind(FID, covariates)
   covariates[1, 1] <- "FID"
   covariates[1, 2] <- "IID"
-  write.table(covariates, file = paste("covariates/", tissue, ".expression_covariates.txt", sep = ""),
+  write.table(covariates, file = paste("covariates/", tissue, ".covariates.txt", sep = ""),
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 

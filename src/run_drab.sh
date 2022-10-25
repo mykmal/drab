@@ -13,14 +13,14 @@
 
 module load R/4.1.0
 
-cd ${DREX}
+cd ${DRAB}
 
 mkdir ${SLURM_JOB_ID}
 
-Rscript --vanilla scripts/split_data.R ${TISSUE_A} ${TISSUE_B} ${SLURM_JOB_ID}
+Rscript --vanilla src/split_data.R ${CONTEXT_A} ${CONTEXT_B} ${SLURM_JOB_ID}
 
-read -r HEADER_A < expression/${TISSUE_A}.expression_matrix.txt
-read -r HEADER_B < expression/${TISSUE_B}.expression_matrix.txt
+read -r HEADER_A < expression/${CONTEXT_A}.expression.txt
+read -r HEADER_B < expression/${CONTEXT_B}.expression.txt
 
 while read -r NAME ID CHR START END ETC; do
 
@@ -40,9 +40,9 @@ fi
 
 ((END=${END}+500000))
 
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part1.expression_matrix.txt > ${SLURM_JOB_ID}/part1.individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part2.expression_matrix.txt > ${SLURM_JOB_ID}/part2.individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression_matrix.txt > ${SLURM_JOB_ID}/part3.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part1.expression.txt > ${SLURM_JOB_ID}/part1.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part2.expression.txt > ${SLURM_JOB_ID}/part2.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression.txt > ${SLURM_JOB_ID}/part3.individuals.txt
 
 ./plink --bfile genotypes/dosages \
           --silent \
@@ -50,7 +50,7 @@ awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression_matrix.txt > ${
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/part1.expression_matrix.txt \
+          --pheno ${SLURM_JOB_ID}/part1.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/part1.individuals.txt \
           --make-bed \
@@ -62,7 +62,7 @@ awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression_matrix.txt > ${
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/part2.expression_matrix.txt \
+          --pheno ${SLURM_JOB_ID}/part2.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/part2.individuals.txt \
           --make-bed \
@@ -74,7 +74,7 @@ awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression_matrix.txt > ${
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/part3.expression_matrix.txt \
+          --pheno ${SLURM_JOB_ID}/part3.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/part3.individuals.txt \
           --make-bed \
@@ -86,7 +86,7 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
-Rscript --vanilla scripts/DREX.R ${SLURM_JOB_ID} ${TISSUE_A} ${TISSUE_B} ${GENES} ${NAME} ${ID}
+Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${BOOT} ${CONTEXT_A} ${CONTEXT_B} ${GENES} ${NAME} ${ID}
 
 rm -rf ${SLURM_JOB_ID}/${NAME}
 

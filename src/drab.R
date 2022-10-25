@@ -80,7 +80,7 @@ CovarAdjust <- function(plink_path, covar_path)
   return(list(genotypes = genotypes, expression = expression))
 }
 
-# Train and test an expression imputation model, returning the squared prediction errors
+# Train and test an expression imputation model, returning the squared prediction residuals
 TrainTest <- function(training_genotypes, training_expression, testing_genotypes, testing_expression)
 {
   # Fit an elastic net regression model on the training data
@@ -90,7 +90,7 @@ TrainTest <- function(training_genotypes, training_expression, testing_genotypes
   # Get predictions for the model on the testing data
   predictions <- predict(model, newx = as.matrix(testing_genotypes), type = "response", s = "lambda.1se")
   
-  # Compute per-individual squared errors
+  # Compute per-individual squared residuals
   loss <- (testing_expression - predictions[,1])^2
   
   return(loss)
@@ -104,16 +104,17 @@ TrainTest <- function(training_genotypes, training_expression, testing_genotypes
 args <- commandArgs(trailingOnly = TRUE)
 
 job <- args[1]
-tissue_A <- args[2]
-tissue_B <- args[3]
-out_name <- args[4]
-name <- args[5]
-id <- args[6]
+boot <- as.numeric(args[2])
+context_A <- args[3]
+context_B <- args[4]
+out_name <- args[5]
+name <- args[6]
+id <- args[7]
 
 # Import data and adjust for covariates
-data_train_1 <- CovarAdjust(paste(job, "/", name, "/part1", sep = ""), paste(job, "/part1.expression_covariates.txt", sep = ""))
-data_train_2 <- CovarAdjust(paste(job, "/", name, "/part2", sep = ""), paste(job, "/part2.expression_covariates.txt", sep = ""))
-data_test <- CovarAdjust(paste(job, "/", name, "/part3", sep = ""), paste(job, "/part3.expression_covariates.txt", sep = ""))
+data_train_1 <- CovarAdjust(paste(job, "/", name, "/part1", sep = ""), paste(job, "/part1.covariates.txt", sep = ""))
+data_train_2 <- CovarAdjust(paste(job, "/", name, "/part2", sep = ""), paste(job, "/part2.covariates.txt", sep = ""))
+data_test <- CovarAdjust(paste(job, "/", name, "/part3", sep = ""), paste(job, "/part3.covariates.txt", sep = ""))
 
 # Subset the three data sets to a common set of SNPs
 all_snps <- Reduce(intersect, list(colnames(data_train_1$genotypes), colnames(data_train_2$genotypes), colnames(data_test$genotypes)))
@@ -128,8 +129,8 @@ var_differences_full <- var(loss_full_1 - loss_full_2)
 mean_differences_full <- mean(loss_full_1 - loss_full_2)
 
 # Find the distribution of sample means of the differences between model prediction errors using bootstrapping
-boot_means <- numeric(10)
-for (i in 1:10) {
+boot_means <- numeric(boot)
+for (i in 1:boot) {
   # Sample from the rows of each dataset with replacement
   resamples_train_1 <- sample(seq_len(nrow(data_train_1$expression)), replace = TRUE)
   resamples_train_2 <- sample(seq_len(nrow(data_train_2$expression)), replace = TRUE)
@@ -141,13 +142,13 @@ for (i in 1:10) {
   boot_means[i] <- mean(loss_boot_1 - loss_boot_2)
 }
 
-# Conduct the DREX test, comparing whether the models have equal predictive performance
+# Conduct the DRAB test, comparing whether the models have equal predictive performance
 n <- nrow(data_test$expression)
 t <- mean_differences_full / sqrt((var_differences_full / n) + var(boot_means))
 pval <- 2 * pt(abs(t), df = n - 1, lower.tail = FALSE)
-pval2 <- t.test(x = loss_full_1, y = loss_full_2, paired = TRUE)$p.value
+pval_conditional <- t.test(x = loss_full_1, y = loss_full_2, paired = TRUE)$p.value
 
 # Append the test results to the output file
-results <- paste(name, id, pval, pval2, nrow(data_train_1$expression), nrow(data_train_2$expression), nrow(data_test$expression), sep = "\t")
-cat(results, file = paste("output/", tissue_A, "-", tissue_B, "-", out_name, ".txt", sep = ""), append = TRUE, sep = "\n")
+results <- paste(name, id, pval, pval_conditional, nrow(data_train_1$expression), nrow(data_test$expression), sep = "\t")
+cat(results, file = paste("output/", context_A, "-", context_B, "-", out_name, ".txt", sep = ""), append = TRUE, sep = "\n")
 

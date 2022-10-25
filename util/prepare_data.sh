@@ -13,7 +13,7 @@
 
 module load R/4.1.0
 
-cd ${DREX}
+cd ${DRAB}
 
 awk '(NR > 6) && ($1 ~ /^chr[1-9]/) && ($3 == "gene") {print $16 "\t" $10 "\t" $1 "\t" $4 "\t" $5 "\t" $14}' raw/gencode.v26.GRCh38.genes.gtf | \
 tr -d ";\"" > annotations/all_genes.txt
@@ -27,7 +27,7 @@ awk '$6 == "protein_coding" {print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5}' annotati
           --make-bed \
           --out TEMP1
 
-Rscript --vanilla scripts/extract_phenotypes.R
+Rscript --vanilla util/extract_phenotypes.R
 
 ./plink --bfile TEMP1 \
           --keep phenotypes.txt \
@@ -78,5 +78,5 @@ awk '$2 !~ /^rs/ {print $2}' TEMP6.bim > TEMP_missing_rsids.txt
 
 rm TEMP*
 
-Rscript --vanilla scripts/GTEx_to_plink.R
+Rscript --vanilla util/GTEx_to_plink.R
 
