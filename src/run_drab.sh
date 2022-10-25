@@ -86,6 +86,24 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
+if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part1.fam)" -lt 10 ]; then
+printf "Insufficient training sample size for ${ID} in ${CONTEXT_A}. Skipping gene.\n"
+rm -rf ${SLURM_JOB_ID}/${NAME}
+continue
+fi
+
+if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part2.fam)" -lt 10 ]; then
+printf "Insufficient training sample size for ${ID} in ${CONTEXT_B}. Skipping gene.\n"
+rm -rf ${SLURM_JOB_ID}/${NAME}
+continue
+fi
+
+if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part3.fam)" -lt 10 ]; then
+printf "Insufficient testing sample size for ${ID}. Skipping gene.\n"
+rm -rf ${SLURM_JOB_ID}/${NAME}
+continue
+fi
+
 Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${BOOT} ${CONTEXT_A} ${CONTEXT_B} ${GENES} ${NAME} ${ID}
 
 rm -rf ${SLURM_JOB_ID}/${NAME}
