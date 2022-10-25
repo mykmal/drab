@@ -17,6 +17,12 @@ cd ${DRAB}
 
 mkdir ${SLURM_JOB_ID}
 
+printf "DRAB runtime parameters:\n"
+printf "CONTEXT_A = ${CONTEXT_A}\n"
+printf "CONTEXT_B = ${CONTEXT_B}\n"
+printf "GENES = ${GENES}\n"
+printf "BOOT = ${BOOT}\n\n"
+
 Rscript --vanilla src/split_data.R ${CONTEXT_A} ${CONTEXT_B} ${SLURM_JOB_ID}
 
 read -r HEADER_A < expression/${CONTEXT_A}.expression.txt
