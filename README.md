@@ -1,8 +1,8 @@
 # DRAB: Differential Regulation Analysis by Bootstrapping
 
-DRAB is a tool for identifying genes with significantly different patterns of local genetic regulation between two tissues or other biological contexts. The documentation below covers DRAB installation, required input data, and usage. We also provide an appendix with information on how to obtain the data used in our paper.
+DRAB is a tool for identifying genes with significantly different patterns of local genetic regulation between two tissues or other biological contexts. The documentation below covers DRAB installation, required input data, and usage. For information on the DRAB methodology, see our paper "Identifying genes with tissue-specific patterns of genetic regulation" by Malakhov et al.
 
-**Note:** The DRAB workflow is designed to be run on a Linux cluster through SLURM. No other platforms are currently supported.
+**Note:** The DRAB pipeline is designed to be run on a Linux cluster through SLURM. No other platforms are currently supported.
 
 ## Setup
 
@@ -22,11 +22,11 @@ wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
 unzip plink_linux_x86_64_20220402.zip
 rm plink_linux_x86_64_20220402.zip prettify toy*
 ```
-* The files `drab/src/run_drex.sh` and `drab/util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of each SLURM script as appropriate for your compute cluster. In particular, be sure to set the `--mail-user` flag to your own email address and the `--partition` flag to the list of SLURM partitions on your cluster. The remaining commands may be left at their defaults.
+* The files `drab/src/run_drex.sh` and `drab/util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of both SLURM scripts as appropriate for your compute cluster. In particular, be sure to set the `--partition` flag to the list of SLURM partitions on your cluster and the `--mail-user` flag to your own email address. The remaining commands may be left at their defaults.
 
 ## Input data formats
 
-The subsections below explain the files and file formats that DRAB expects. All of the files mentioned below are required.
+The subsections below explain the files and file formats that DRAB expects. All of the files mentioned here are required.
 
 ### Gene annotations
 
@@ -76,18 +76,18 @@ Use the naming convention `<context>.covariates.txt` and save all of the covaria
 
 ## Running DRAB
 
-To run DRAB, submit the `src/run_drab.sh` shell script as a SLURM job with `CONTEXT_A`, `CONTEXT_B`, `GENES`, and `BOOT` as exported environment variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex` using 10 bootstrap iterations, run the command
+To run DRAB, submit the `src/run_drab.sh` shell script as a SLURM job with `CONTEXT_A`, `CONTEXT_B`, `GENES`, and `BOOT` as exported environment variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex` using 50 bootstrap iterations, run the command
 ```
-sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="all_genes",BOOT="10",DRAB=$(pwd) src/run_drab.sh
+sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="all_genes",BOOT="50",DRAB=$(pwd) src/run_drab.sh
 ```
-In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues/contexts and `all_genes` with the name of your annotation file. The variable `BOOT` determines the number of bootstrap iterations to perform. The default value of 10 should be sufficient for most applications, but larger values are preferable if computationally feasible.
+In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues/contexts and `all_genes` with the name of your annotation file. The variable `BOOT` determines the number of bootstrap iterations to perform. Although we have found that as few as 10 bootstrap iterations will give reasonable results, we recommend using more iterations (e.g. 50) if computationally feasible.
 
 The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue/context names and annotation file name you specified when running DRAB.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 
 1. Gene name
 2. Gene ID
 3. P-value for testing H_0: the gene is regulated identically in both contexts
-4. P-value from a paired t-test for H_0: the fitted models have equal squared prediction residuals
+4. P-value from a paired t-test for H_0: the trained models have equal squared prediction residuals
 5. Number of individuals in each training set
 6. Number of individuals in the testing set
 
@@ -97,21 +97,23 @@ If the DRAB P-value (in field 3) for a given gene is sufficiently small, then we
 
 ## Appendix: download and prepare GTEx data
 
-First, create the folder `drab/raw` to store the unprocessed GTEx data sets. This folder may be safely deleted after completing all of the steps in this section.
+This appendix describes how to obtain and prepare the data used in our paper "Identifying genes with tissue-specific patterns of genetic regulation."
+
+First, create the folder `drab/raw` to store the unprocessed GTEx data sets. This folder may be safely deleted after completing all of the steps in this appendix.
 
 From the **GTEx Analysis V8 (dbGaP Accession phs000424.v8.p2)** section of https://www.gtexportal.org/home/datasets, download the following files:
 
-* `GTEx_Analysis_v8_eQTL_EUR.tar` (under the sub-heading "Single-Tissue cis-QTL Data")  
-Unpack this archive and move the folders `expression_matrices` and `expression_covariates` to `drab/raw`. (The other folder in the tar is not needed.)
-* `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.lookup_table.txt.gz` (under the sub-heading "Reference")  
-Uncompress this file and move it to `drab/raw`.
-* `gencode.v26.GRCh38.genes.gtf` (under the sub-heading "Reference")  
+* `GTEx_Analysis_v8_eQTL_expression_matrices.tar` (under the heading "Single-Tissue cis-QTL Data")  
+Unpack this archive and move it to `drab/raw`.
+* `GTEx_Analysis_v8_eQTL_covariates.tar.gz` (under the heading "Single-Tissue cis-QTL Data")  
+Unpack this archive and move it to `drab/raw`.
+* `gencode.v26.GRCh38.genes.gtf` (under the heading "Reference")  
 Move this file to `drab/raw`.
 
 After obtaining access to the GTEx data in [dbGaP](https://www.ncbi.nlm.nih.gov/gap/) (accession phs000424.v8.p2), follow the dbGaP documentation to download the following files:
 
 * `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`  
-Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to `drab/raw`. (The other files in the tar are not needed.)
+Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to `drab/raw`. (The other files in the archive are not needed.)
 * `phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz`  
 Uncompress this file and move it to `drab/raw`.
 
