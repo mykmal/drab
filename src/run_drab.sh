@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=32
-#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=64g
-#SBATCH --time=50:00:00
-#SBATCH --tmp=100g
+#SBATCH --time=90:00:00
+#SBATCH --tmp=10g
 #SBATCH --partition=agsmall,aglarge,ag2tb
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=malak039@umn.edu
@@ -25,6 +25,31 @@ printf "BOOT = ${BOOT}\n\n"
 
 Rscript --vanilla src/split_data.R ${CONTEXT_A} ${CONTEXT_B} ${SLURM_JOB_ID}
 
+DA_SIZE=$(wc -l < ${SLURM_JOB_ID}/part1.expression.txt)
+if (( ${DA_SIZE} < 10 )); then
+printf "Error: insufficient data. The training sample size for ${CONTEXT_A} is ${DA_SIZE}.\n"
+rm -rf ${SLURM_JOB_ID}
+exit 1
+fi
+
+DB_SIZE=$(wc -l < ${SLURM_JOB_ID}/part2.expression.txt)
+if (( ${DB_SIZE} < 10 )); then
+printf "Error: insufficient data. The training sample size for ${CONTEXT_B} is ${DB_SIZE}.\n"
+rm -rf ${SLURM_JOB_ID}
+exit 1
+fi
+
+DT_SIZE=$(wc -l < ${SLURM_JOB_ID}/part3.expression.txt)
+if (( ${DT_SIZE} < 10 )); then
+printf "Error: insufficient data. The testing sample size is ${DT_SIZE}.\n"
+rm -rf ${SLURM_JOB_ID}
+exit 1
+fi
+
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part1.expression.txt > ${SLURM_JOB_ID}/part1.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part2.expression.txt > ${SLURM_JOB_ID}/part2.individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression.txt > ${SLURM_JOB_ID}/part3.individuals.txt
+
 read -r HEADER_A < expression/${CONTEXT_A}.expression.txt
 read -r HEADER_B < expression/${CONTEXT_B}.expression.txt
 
@@ -39,16 +64,12 @@ mkdir ${SLURM_JOB_ID}/${NAME}
 
 CHR=$(echo ${CHR} | tr -d "chr")
 
-((START=${START}-500000))
+START=$(( ${START} - 500000 ))
 if (( ${START} < 0 )); then
 START=0
 fi
 
-((END=${END}+500000))
-
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part1.expression.txt > ${SLURM_JOB_ID}/part1.individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part2.expression.txt > ${SLURM_JOB_ID}/part2.individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression.txt > ${SLURM_JOB_ID}/part3.individuals.txt
+END=$(( ${END} + 500000 ))
 
 ./plink --bfile genotypes/dosages \
           --silent \
@@ -88,24 +109,6 @@ awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/part3.expression.txt > ${SLURM_J
 
 if ( [ ! -f ${SLURM_JOB_ID}/${NAME}/part1.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/part2.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/part3.bed ] ); then
 printf "Unable to extract genotype data for ${ID}. Skipping gene.\n"
-rm -rf ${SLURM_JOB_ID}/${NAME}
-continue
-fi
-
-if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part1.fam)" -lt 10 ]; then
-printf "Insufficient training sample size for ${ID} in ${CONTEXT_A}. Skipping gene.\n"
-rm -rf ${SLURM_JOB_ID}/${NAME}
-continue
-fi
-
-if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part2.fam)" -lt 10 ]; then
-printf "Insufficient training sample size for ${ID} in ${CONTEXT_B}. Skipping gene.\n"
-rm -rf ${SLURM_JOB_ID}/${NAME}
-continue
-fi
-
-if [ "$(wc -l < ${SLURM_JOB_ID}/${NAME}/part3.fam)" -lt 10 ]; then
-printf "Insufficient testing sample size for ${ID}. Skipping gene.\n"
 rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
