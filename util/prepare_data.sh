@@ -43,7 +43,7 @@ Rscript --vanilla util/extract_phenotypes.R
           --out TEMP4
 
 ./plink --bfile TEMP4 \
-          --maf 0.05 \
+          --geno 0 \
           --make-bed \
           --out TEMP5
 
@@ -53,7 +53,7 @@ Rscript --vanilla util/extract_phenotypes.R
           --out TEMP6
 
 ./plink --bfile TEMP6 \
-          --geno 0 \
+          --maf 0.05 \
           --make-bed \
           --out genotypes/dosages
 
