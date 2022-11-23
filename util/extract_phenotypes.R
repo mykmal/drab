@@ -1,4 +1,4 @@
-data <- read.delim(file = "raw/phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt", skip = 10, stringsAsFactors = FALSE)
+data <- read.delim(file = "raw/phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz", skip = 10, stringsAsFactors = FALSE)
 
 phenotypes <- subset(data, RACE == 3, select = c(SUBJID, SEX, AGE))
 

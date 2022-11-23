@@ -103,10 +103,8 @@ First, create the folder `drab/raw` to store the unprocessed GTEx data sets. Thi
 
 From the **GTEx Analysis V8 (dbGaP Accession phs000424.v8.p2)** section of https://www.gtexportal.org/home/datasets, download the following files:
 
-* `GTEx_Analysis_v8_eQTL_expression_matrices.tar` (under the heading "Single-Tissue cis-QTL Data")  
-Unpack this archive and move it to `drab/raw`.
-* `GTEx_Analysis_v8_eQTL_covariates.tar.gz` (under the heading "Single-Tissue cis-QTL Data")  
-Unpack this archive and move it to `drab/raw`.
+* `GTEx_Analysis_v8_eQTL_EUR.tar` (under the heading "Single-Tissue cis-QTL Data")  
+Extract the folders `expression_matrices` and `expression_covariates` from the tar, and move them to `drab/raw`. (The other folder in the archive is not needed.)
 * `gencode.v26.GRCh38.genes.gtf` (under the heading "Reference")  
 Move this file to `drab/raw`.
 
@@ -115,11 +113,11 @@ After obtaining access to the GTEx data in [dbGaP](https://www.ncbi.nlm.nih.gov/
 * `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`  
 Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to `drab/raw`. (The other files in the archive are not needed.)
 * `phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz`  
-Uncompress this file and move it to `drab/raw`.
+Move this file to `drab/raw`.
 
 To prepare the GTEx data for use with DRAB, from your main `drab` folder run
 ```
 sbatch --export=DRAB=$(pwd) util/prepare_data.sh
 ```
-This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the gene expression data and expression covariates.
+This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the expression matrices and expression covariates.
 

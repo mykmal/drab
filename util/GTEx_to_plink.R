@@ -51,14 +51,11 @@ tissues <-
     "Whole_Blood"
   )
 
-EUR_individuals <- read.table(file = "phenotypes.txt")$IID
-
 for (tissue in tissues) {
   
-  expression <- read.table(file = paste("raw/GTEx_Analysis_v8_eQTL_expression_matrices/", tissue, ".v8.normalized_expression.bed.gz", sep = ""),
+  expression <- read.table(file = paste("raw/expression_matrices/", tissue, ".v8.EUR.normalized_expression.bed.gz", sep = ""),
                            comment.char = "", check.names = FALSE)
-  EUR_expression <- intersect(EUR_individuals, colnames(expression))
-  expression <- subset(expression, select = c("gene_id", EUR_expression))
+  expression <- expression[-c(1,2,3)]
   expression <- as.data.frame(t(expression))
   FID <- matrix(0L, nrow = nrow(expression), ncol = 1)
   expression <- cbind(FID, expression)
@@ -67,9 +64,7 @@ for (tissue in tissues) {
   write.table(expression, file = paste("expression/", tissue, ".expression.txt", sep = ""),
               quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
   
-  covariates <- read.table(file = paste("raw/GTEx_Analysis_v8_eQTL_covariates/", tissue, ".v8.covariates.txt", sep = ""))
-  EUR_covariates <- intersect(EUR_individuals, colnames(covariates))
-  covariates <- subset(covariates, select = c("ID", EUR_covariates))
+  covariates <- read.table(file = paste("raw/expression_covariates/", tissue, ".v8.EUR.covariates.txt", sep = ""))
   covariates <- as.data.frame(t(covariates))
   FID <- matrix(0L, nrow = nrow(covariates), ncol = 1)
   covariates <- cbind(FID, covariates)

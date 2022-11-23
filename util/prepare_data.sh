@@ -1,9 +1,7 @@
 #!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
+#SBATCH --ntasks=1
 #SBATCH --mem=64g
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --tmp=10g
 #SBATCH --partition=agsmall,aglarge,ag2tb
 #SBATCH --mail-type=FAIL
@@ -53,7 +51,7 @@ Rscript --vanilla util/extract_phenotypes.R
           --out TEMP6
 
 ./plink --bfile TEMP6 \
-          --maf 0.05 \
+          --maf 0.01 \
           --make-bed \
           --out genotypes/dosages
 
