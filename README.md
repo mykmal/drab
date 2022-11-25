@@ -19,8 +19,8 @@ install.packages(c("BEDMatrix", "glmnet"))
 * Download PLINK to the main `drab` folder. We used PLINK v1.90b6.26 64-bit (2 Apr 2022).
 ```
 wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
-unzip plink_linux_x86_64_20220402.zip
-rm plink_linux_x86_64_20220402.zip prettify toy*
+unzip plink_linux_x86_64_20220402.zip plink
+rm plink_linux_x86_64_20220402.zip
 ```
 * The files `drab/src/run_drex.sh` and `drab/util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of both SLURM scripts as appropriate for your compute cluster. In particular, be sure to set the `--partition` flag to the list of SLURM partitions on your cluster and the `--mail-user` flag to your own email address. The remaining commands may be left at their defaults.
 

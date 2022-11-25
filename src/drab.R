@@ -104,10 +104,10 @@ TrainTest <- function(training_genotypes, training_expression, testing_genotypes
 args <- commandArgs(trailingOnly = TRUE)
 
 job <- args[1]
-boot <- as.numeric(args[2])
-context_A <- args[3]
-context_B <- args[4]
-out_name <- args[5]
+context_A <- args[2]
+context_B <- args[3]
+genes <- args[4]
+boot <- as.numeric(args[5])
 name <- args[6]
 id <- args[7]
 
@@ -151,12 +151,14 @@ for (i in 1:boot) {
 }
 
 # Conduct the DRAB test, comparing whether the models have equal predictive performance
-training_var <- (var(boot_means) * (n_testing - 1)) / n_testing
+training_var <- (var(boot_means) * (boot - 1)) / boot
 T_DRAB <- (2 * mean_differences_full - mean(boot_means)) / sqrt(mean(boot_variances) + training_var)
-pval <- 2 * pt(abs(t), df = n_testing - 1, lower.tail = FALSE)
+pval <- 2 * pt(abs(T_DRAB), df = n_testing - 1, lower.tail = FALSE)
+
+# Conduct a paired samples t-test on the prediction errors, to compare this standard approach with the DRAB test
 pval_conditional <- t.test(x = loss_full_1, y = loss_full_2, paired = TRUE)$p.value
 
 # Append the test results to the output file
 results <- paste(name, id, pval, pval_conditional, n_training, n_testing, sep = "\t")
-cat(results, file = paste("output/", context_A, "-", context_B, "-", out_name, ".txt", sep = ""), append = TRUE, sep = "\n")
+cat(results, file = paste("output/", context_A, "-", context_B, "-", genes, ".txt", sep = ""), append = TRUE, sep = "\n")
 

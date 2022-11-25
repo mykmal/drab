@@ -1,12 +1,10 @@
 #!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
+#SBATCH --ntasks=1
 #SBATCH --mem=64g
 #SBATCH --time=90:00:00
 #SBATCH --tmp=10g
-#SBATCH --partition=agsmall,aglarge,ag2tb
-#SBATCH --mail-type=ALL
+#SBATCH --partition=msismall,msilarge,msibigmem
+#SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
 #SBATCH -e logs/%j.err
@@ -15,13 +13,13 @@ module load R/4.1.0
 
 cd ${DRAB}
 
-mkdir ${SLURM_JOB_ID}
-
 printf "DRAB runtime parameters:\n"
 printf "CONTEXT_A = ${CONTEXT_A}\n"
 printf "CONTEXT_B = ${CONTEXT_B}\n"
 printf "GENES = ${GENES}\n"
 printf "BOOT = ${BOOT}\n\n"
+
+mkdir ${SLURM_JOB_ID}
 
 Rscript --vanilla src/split_data.R ${CONTEXT_A} ${CONTEXT_B} ${SLURM_JOB_ID}
 
@@ -113,7 +111,7 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
-Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${BOOT} ${CONTEXT_A} ${CONTEXT_B} ${GENES} ${NAME} ${ID}
+Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${CONTEXT_A} ${CONTEXT_B} ${GENES} ${BOOT} ${NAME} ${ID}
 
 rm -rf ${SLURM_JOB_ID}/${NAME}
 

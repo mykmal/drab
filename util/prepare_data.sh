@@ -3,7 +3,7 @@
 #SBATCH --mem=64g
 #SBATCH --time=1:00:00
 #SBATCH --tmp=10g
-#SBATCH --partition=agsmall,aglarge,ag2tb
+#SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
