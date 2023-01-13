@@ -1,8 +1,8 @@
 # DRAB: Differential Regulation Analysis by Bootstrapping
 
-DRAB is a tool for identifying genes with significantly different patterns of local genetic regulation between two tissues or other biological contexts. The documentation below covers DRAB installation, required input data, and usage. For information on the DRAB methodology, see our paper "Identifying genes with tissue-specific patterns of genetic regulation" by Malakhov et al.
+DRAB is a tool for identifying differentially regulated genes, i.e. genes with significantly different patterns of local genetic regulation between two tissues or other biological contexts. The documentation below covers DRAB installation, required input data, and usage. For information on the DRAB methodology, see our paper "Identifying genes with tissue-specific patterns of genetic regulation" by Malakhov et al.
 
-**Note:** The DRAB pipeline is designed to be run on a Linux cluster through SLURM. No other platforms are currently supported.
+**Note:** The DRAB pipeline is designed to be run on a Linux cluster through SLURM. If you instead wish to run DRAB directly as a shell script, simply replace the SLURM variables with analogous shell variables.
 
 ## Setup
 
@@ -12,17 +12,17 @@ git clone https://github.com/MykMal/drab.git
 cd drab
 mkdir annotations covariates expression genotypes logs output
 ```
-* Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1.4.
+* Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
 ```
 install.packages(c("BEDMatrix", "glmnet"))
 ```
-* Download PLINK to the main `drab` folder. We used PLINK v1.90b6.26 64-bit (2 Apr 2022).
+* Download PLINK to the main `drab` folder. We used PLINK v1.90b6.27 64-bit (10 Dec 2022).
 ```
-wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
-unzip plink_linux_x86_64_20220402.zip plink
-rm plink_linux_x86_64_20220402.zip
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20221210.zip
+unzip plink_linux_x86_64_20221210.zip plink
+rm plink_linux_x86_64_20221210.zip
 ```
-* The files `drab/src/run_drex.sh` and `drab/util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of both SLURM scripts as appropriate for your compute cluster. In particular, be sure to set the `--partition` flag to the list of SLURM partitions on your cluster and the `--mail-user` flag to your own email address. The remaining commands may be left at their defaults.
+* The files `src/run_drab.sh` and `util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of both SLURM scripts as appropriate for your compute cluster. In particular, be sure to set the `--partition` flag to the list of SLURM partitions on your cluster and the `--mail-user` flag to your own email address. The remaining commands may be left at their defaults.
 
 ## Input data formats
 
@@ -76,7 +76,7 @@ Use the naming convention `<context>.covariates.txt` and save all of the covaria
 
 ## Running DRAB
 
-To run DRAB, submit the `src/run_drab.sh` shell script as a SLURM job with `CONTEXT_A`, `CONTEXT_B`, `GENES`, and `BOOT` as exported environment variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex` using 50 bootstrap iterations, run the command
+To run DRAB, submit the `src/run_drab.sh` shell script as a SLURM job with `CONTEXT_A`, `CONTEXT_B`, `GENES`, and `BOOT` as exported variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex` using 50 bootstrap iterations, run the command
 ```
 sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="all_genes",BOOT="50",DRAB=$(pwd) src/run_drab.sh
 ```
@@ -87,7 +87,7 @@ The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (H
 1. Gene name
 2. Gene ID
 3. P-value for testing H_0: the gene is regulated identically in both contexts
-4. P-value from a paired t-test for H_0: the trained models have equal squared prediction residuals
+4. P-value from a paired t-test for H_0: the trained models have equal mean squared prediction errors
 5. Number of individuals in each training set
 6. Number of individuals in the testing set
 
