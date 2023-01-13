@@ -126,16 +126,17 @@ data_test$genotypes <- subset(data_test$genotypes, select = all_snps)
 n_training <- nrow(data_train_1$expression)
 n_testing <- nrow(data_test$expression)
 
-# Train models on the full data set, then find the average difference between model prediction errors
+# Using all of the data, find:
+# (1) the sample mean of the differences between model prediction errors
+# (2) the sample variance of the mean difference between model prediction errors
 loss_full_1 <- TrainTest(data_train_1$genotypes, data_train_1$expression$value, data_test$genotypes, data_test$expression$value)
 loss_full_2 <- TrainTest(data_train_2$genotypes, data_train_2$expression$value, data_test$genotypes, data_test$expression$value)
 mean_differences_full <- mean(loss_full_1 - loss_full_2)
+var_mean_differences_full <- var(loss_full_1 - loss_full_2) / n_testing
 
-# Use bootstrapping to approximate the sampling distributions (across all possible training sets) of:
-# (1) the sample mean of the differences between model prediction errors
-# (2) the sample variance of the mean difference between model prediction errors
+# Use bootstrapping to approximate the sampling distribution (across all possible training sets) of
+# the sample mean of the differences between model prediction errors
 boot_means <- numeric(boot)
-boot_variances <- numeric(boot)
 for (i in 1:boot) {
   # Sample from the rows of each training data set with replacement
   resamples_train_1 <- sample(seq_len(n_training), replace = TRUE)
@@ -145,14 +146,13 @@ for (i in 1:boot) {
   loss_boot_1 <- TrainTest(data_train_1$genotypes[resamples_train_1, ], data_train_1$expression[resamples_train_1, ], data_test$genotypes, data_test$expression$value)
   loss_boot_2 <- TrainTest(data_train_2$genotypes[resamples_train_2, ], data_train_2$expression[resamples_train_2, ], data_test$genotypes, data_test$expression$value)
   
-  # Calculate the statistics that we are bootstrapping
+  # Calculate the statistic that we are bootstrapping
   boot_means[i] <- mean(loss_boot_1 - loss_boot_2)
-  boot_variances[i] <- var(loss_boot_1 - loss_boot_2) / n_testing
 }
 
-# Conduct the DRAB test, comparing whether the models have equal predictive performance
+# Conduct the DRAB test, comparing whether the two transcriptome imputation models are equivalent
 training_var <- (var(boot_means) * (boot - 1)) / boot
-T_DRAB <- (2 * mean_differences_full - mean(boot_means)) / sqrt(mean(boot_variances) + training_var)
+T_DRAB <- mean_differences_full / sqrt(var_mean_differences_full + training_var)
 pval <- 2 * pt(abs(T_DRAB), df = n_testing - 1, lower.tail = FALSE)
 
 # Conduct a paired samples t-test on the prediction errors, to compare this standard approach with the DRAB test
