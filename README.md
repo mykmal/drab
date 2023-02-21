@@ -17,17 +17,17 @@ unzip main.zip && mv drab-main drab && rm main.zip
 cd drab
 mkdir annotations covariates expression genotypes logs output
 ```
-1. Install the R packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
+2. Install the R packages BEDMatrix and glmnet. We used R version 4.2.2 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
 ```
 Rscript -e 'install.packages(c("BEDMatrix", "glmnet"), repos="http://cran.us.r-project.org")'
 ```
-1. Download PLINK to the main `drab` folder. We used PLINK v1.90b6.27 64-bit (10 Dec 2022).
+3. Download PLINK to the main `drab` folder. We used PLINK v1.90b7 64-bit (16 Jan 2023).
 ```
-wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20221210.zip
-unzip plink_linux_x86_64_20221210.zip plink
-rm plink_linux_x86_64_20221210.zip
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20230116.zip
+unzip plink_linux_x86_64_20230116.zip plink
+rm plink_linux_x86_64_20230116.zip
 ```
-1. The files `src/run_drab.sh` and `util/prepare_data.sh` are shell scripts prefaced by SLURM commands. If you intend to run DRAB through SLURM, modify the `#SBATCH` commands at the beginning of each script as appropriate for your compute cluster. Otherwise, if you will run DRAB without a job scheduling system, delete (or comment out) the `module load R/4.1.0` line near the top of the script and uncomment the two lines below it.
+4. The files `src/run_drab.sh` and `util/prepare_data.sh` are shell scripts prefaced by SLURM commands. If you intend to run DRAB through SLURM, modify the `#SBATCH` commands at the beginning of each script as appropriate for your compute cluster. Otherwise, if you will run DRAB without a job scheduling system, delete (or comment out) the `module load R/4.2.2-openblas` line near the top of the scripts and uncomment the two lines below it.
 
 ## Input data formats
 

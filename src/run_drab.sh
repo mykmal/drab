@@ -12,7 +12,7 @@
 cd ${DRAB}
 
 # Delete (or comment out) the following line if not using SLURM:
-module load R/4.1.0
+module load R/4.2.2-openblas
 
 # Uncomment the following two lines if not using SLURM:
 #SLURM_JOB_ID=$((1 + $RANDOM % 1000))

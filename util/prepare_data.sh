@@ -12,9 +12,10 @@
 cd ${DRAB}
 
 # Delete (or comment out) the following line if not using SLURM:
-module load R/4.1.0
+module load R/4.2.2-openblas
 
-# Uncomment the following line if not using SLURM:
+# Uncomment the following two lines if not using SLURM:
+#SLURM_JOB_ID=$((1 + $RANDOM % 1000))
 #exec 1> logs/${SLURM_JOB_ID}.out 2> logs/${SLURM_JOB_ID}.err
 
 awk '(NR > 6) && ($1 ~ /^chr[1-9]/) && ($3 == "gene") {print $16 "\t" $10 "\t" $1 "\t" $4 "\t" $5 "\t" $14}' raw/gencode.v26.GRCh38.genes.gtf | \
