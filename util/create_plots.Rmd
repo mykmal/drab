@@ -1,0 +1,153 @@
+---
+title: "Visualization of DRAB results"
+author: "Mykhaylo M. Malakhov"
+date: "2023-02-16"
+output: html_document
+---
+
+[DRAB (Differential Regulation Analysis by Bootstrapping)](https://github.com/MykMal/drab) is a tool for identifying genes that exhibit significantly different patterns of local genetic regulation between two tissues or other biological contexts. This RMarkdown notebook contains useful scripts for visualizing the output of DRAB, which were used to create the figures in the main DRAB paper.
+
+## Function definitions
+
+```{r}
+library(tidyverse)
+library(qqman)
+
+ci <- 0.95
+annotations <- read.table("../annotations/protein_coding_genes.txt")
+
+# Save a tab-separated file of the results with column headings and gene position information
+format <- function(tissue1, tissue2, title) {
+  
+  full_data <- data.frame(matrix(ncol = 6, nrow = 0))
+  
+  for (chr in 1:22) {
+    results <- read.table(paste("../output/", tissue1, "-", tissue2, "-pc_chr", chr, ".txt", sep = ""))
+    full_data <- rbind(full_data, results)
+  }
+  
+  colnames(full_data) <- c("gene", "id", "p", "p_c", "n_train", "n_test")
+  full_data <- merge(full_data, annotations, by.x = "id", by.y = "V2")
+  full_data <- subset(full_data, select = c("gene", "id", "V3", "V4", "V5", "p", "p_c", "n_train", "n_test"))
+  colnames(full_data) <- c("gene", "id", "chr", "start", "end", "p", "p_c", "n_train", "n_test")
+  full_data$chr <- as.numeric(gsub("chr", "", full_data$chr))
+  
+  write.table(full_data, file = paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), quote = FALSE, row.names = FALSE, sep = "\t")
+}
+
+# Create a Q-Q plot of DRAB P-values
+# Inspired by https://danielroelfs.com/blog/how-i-make-qq-plots-using-ggplot/
+qqplot <- function(rawdata, p_column, pc_column, title, chr) {
+  
+  ngenes <- nrow(rawdata)
+  plotdata <- data.frame(
+    DRAB = -log10(sort(rawdata[[p_column]])),
+    conditional = -log10(sort(rawdata[[pc_column]])),
+    expected = -log10(ppoints(ngenes)),
+    clower = -log10(qbeta(p = (1 - ci) / 2, shape1 = seq(ngenes), shape2 = rev(seq(ngenes)))),
+    cupper = -log10(qbeta(p = (1 + ci) / 2, shape1 = seq(ngenes), shape2 = rev(seq(ngenes)))))
+  
+  plotdata <- plotdata %>% pivot_longer(cols = c("DRAB", "conditional"), names_to = "test", values_to = "pvals")
+  
+  qq <- ggplot(plotdata, aes(x = expected, y = pvals, group = test, color = test)) +
+    geom_ribbon(aes(ymax = cupper, ymin = clower), linetype = 0, fill = "#999999", alpha = 0.25) +
+    geom_segment(data = . %>% filter(expected == max(expected)), 
+                 aes(x = 0, xend = expected, y = 0, yend = expected),
+                 size = 1.25, alpha = 0.6, color = "#999999", lineend = "round") +
+    geom_point(size = 2.5) +
+    labs(x = expression(paste("Expected -log"[10],"(", plain(P),")")),
+         y = expression(paste("Observed -log"[10],"(", plain(P),")")))
+  
+  qq <- qq + ggtitle(paste(title, ": chr ", chr, sep = "")) +
+    theme_bw(base_size = 18) +
+    scale_color_manual(values = c("#009E73", "#D55E00"), name = "") +
+    guides(linetype = 0)
+  
+  return(qq)
+}
+
+# Save a PNG image of the QQ plots for a given tissue pair and chromosome
+qqprint <- function(data, chr, title) {
+  
+  data <- data[data$chr == chr, ]
+
+  png(filename = paste("../plots/", gsub(" ", "_", title), "-chr", chr, "_QQ.png", sep = ""),
+      width = 3200, height = 1800, units = "px", res = 300)
+  print(qqplot(data, "p", "p_c", title, chr))
+  dev.off()
+}
+
+# Save PNG images of the genome-wide Manhattan plots for a given tissue pair
+manprint <- function(data, title) {
+
+  png(filename = paste("../plots/", gsub(" ", "_", title), "-man.png", sep = ""),
+      width = 3200, height = 1800, units = "px", res = 300)
+  manhattan(data, snp = "gene", chr = "chr", bp = "start", p = "p", genomewideline = -log10((1 - ci) / nrow(data)),
+            suggestiveline = FALSE, main = title, col = c("#E69F00", "#56B4E9"))
+  dev.off()
+  
+  png(filename = paste("../plots/", gsub(" ", "_", title), "-man_conditional.png", sep = ""),
+      width = 3200, height = 1800, units = "px", res = 300)
+  manhattan(data, snp = "gene", chr = "chr", bp = "start", p = "p_c", genomewideline = -log10((1 - ci) / nrow(data)),
+            suggestiveline = FALSE, main = title, col = c("#E69F00", "#56B4E9"))
+  dev.off()
+}
+```
+
+## Paper figures
+
+```{r}
+pairs <- c("Whole_Blood-Brain_Anterior_cingulate_cortex_BA24", "Whole_Blood-Brain_Cerebellum", "Whole_Blood-Brain_Cortex", "Whole_Blood-Brain_Frontal_Cortex_BA9", "Whole_Blood-Brain_Hippocampus", "Whole_Blood-Cells_EBV-transformed_lymphocytes", "Whole_Blood-Nerve_Tibial", "Brain_Cortex-Brain_Amygdala", "Brain_Cortex-Brain_Anterior_cingulate_cortex_BA24", "Brain_Cortex-Brain_Spinal_cord_cervical_c-1", "Brain_Cortex-Brain_Substantia_nigra", "Brain_Cortex-Cells_EBV-transformed_lymphocytes", "Brain_Cortex-Nerve_Tibial", "Adrenal_Gland-Thyroid", "Liver-Pancreas", "Lung-Artery_Aorta", "Muscle_Skeletal-Adipose_Subcutaneous", "Skin_Sun_Exposed_Lower_leg-Cells_Cultured_fibroblasts", "Small_Intestine_Terminal_Ileum-Colon_Sigmoid")
+abbreviated <- c("WHLBLD vs BRNACC", "WHLBLD vs BRNCHA", "WHLBLD vs BRNCTXA", "WHLBLD vs BRNCTXB", "WHLBLD vs BRNHPP", "WHLBLD vs LCL", "WHLBLD vs NERVET", "BRNCTXA vs BRNAMY", "BRNCTXA vs BRNACC", "BRNCTXA vs BRNSPC", "BRNCTXA vs BRNSNG", "BRNCTXA vs LCL", "BRNCTXA vs NERVET", "ADRNLG vs THYROID", "LIVER vs PNCREAS", "LUNG vs ARTAORT", "MSCLSK vs ADPSBQ", "SKINS vs FIBRBLS", "SNTTRM vs CLNSGM")
+
+bars <- data.frame(
+  count = integer(),
+  lab = character())
+
+for (i in 1:length(pairs)) {
+  
+  pair <- str_split_fixed(pairs[i], "-", 2)
+  tissue1 <- pair[[1]]
+  tissue2 <- pair[[2]]
+  title <- abbreviated[i]
+  
+  format(tissue1, tissue2, title)
+  data <- read.table(paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), header = TRUE)
+  
+  # Replacing t-test NA's with 1 is fine because they only occur when the tests are not significant
+  # (You can check that the DRAB test p-value is 1 whenever the t-test p-value is NA)
+  data$p_c[is.na(data$p_c)] <- 1
+  
+  manprint(data, title)
+  
+  bars <- rbind(bars, data.frame(
+    count = sum(data$p < (1 - ci) / nrow(data)),
+    lab = title))
+}
+
+bars$lab <- factor(bars$lab, levels = bars$lab)
+
+png(filename = paste("../plots/counts_barplot.png", sep = ""),
+    width = 3200, height = 1800, units = "px", res = 300)
+print(ggplot(data = bars, aes(x = lab, y = count, fill = lab)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = c(rep("#0072B2", 7), rep("#D55E00", 6), rep("#CC79A7", 6))) +
+        labs(y = "Significant genes (count)") +
+        coord_flip() +
+        theme_minimal(base_size = 18) +
+        theme(axis.title.y = element_blank(), legend.position = "none"))
+dev.off()
+
+# Whole blood vs Whole blood as a negative control
+
+tissue1 <- tissue2 <- "Whole_Blood"
+title <- "WHLBLD vs WHLBLD"
+
+format(tissue1, tissue2, title)
+data <- read.table(paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), header = TRUE)
+
+manprint(data, title)
+for (chr in 1:22) {
+  qqprint(data, chr, title)
+}
+```

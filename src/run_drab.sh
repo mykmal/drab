@@ -9,9 +9,14 @@
 #SBATCH -o logs/%j.out
 #SBATCH -e logs/%j.err
 
+cd ${DRAB}
+
+# Delete (or comment out) the following line if not using SLURM:
 module load R/4.1.0
 
-cd ${DRAB}
+# Uncomment the following two lines if not using SLURM:
+#SLURM_JOB_ID=$((1 + $RANDOM % 1000))
+#exec 1> logs/${SLURM_JOB_ID}.out 2> logs/${SLURM_JOB_ID}.err
 
 printf "DRAB runtime parameters:\n"
 printf "CONTEXT_A = ${CONTEXT_A}\n"

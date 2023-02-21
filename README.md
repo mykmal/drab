@@ -1,28 +1,33 @@
-# DRAB: Differential Regulation Analysis by Bootstrapping
+# Overview of DRAB
 
-DRAB is a tool for identifying differentially regulated genes, i.e. genes with significantly different patterns of local genetic regulation between two tissues or other biological contexts. The documentation below covers DRAB installation, required input data, and usage. For information on the DRAB methodology, see our paper "Identifying genes with tissue-specific patterns of genetic regulation" by Malakhov et al.
+DRAB (Differential Regulation Analysis by Bootstrapping) is a tool for identifying genes with context-specific (e.g. tissue-specific) patterns of local genetic regulation. DRAB first leverages elastic net regression to learn the effects of genetic variation on gene expression in each context, and then applies a bootstrap model comparison test to determine whether the context-specific models are equivalent. Notably, our approach is able to test population-level models by accounting for the variability of feature selection and model training.
 
-**Note:** The DRAB pipeline is designed to be run on a Linux cluster through SLURM. If you instead wish to run DRAB directly as a shell script, simply replace the SLURM variables with analogous shell variables.
+DRAB can be applied to any functional/molecular phenotypes that have a genetic component, including mRNA expression and isoform expression levels.
 
-## Setup
+# Running DRAB
 
-* First, clone the DRAB repository and create the required folder structure.
+DRAB is primarily intended to be used on a Linux cluster through SLURM, but it can also be run as a shell script from any bash session.
+
+## Installation
+
+1. Download the DRAB software package and create the required folder structure.
 ```
-git clone https://github.com/MykMal/drab.git
+wget https://github.com/MykMal/drab/archive/refs/heads/main.zip
+unzip main.zip && mv drab-main drab && rm main.zip
 cd drab
 mkdir annotations covariates expression genotypes logs output
 ```
-* Launch R and install the packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
+1. Install the R packages BEDMatrix and glmnet. We used R v4.1.0 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
 ```
-install.packages(c("BEDMatrix", "glmnet"))
+Rscript -e 'install.packages(c("BEDMatrix", "glmnet"), repos="http://cran.us.r-project.org")'
 ```
-* Download PLINK to the main `drab` folder. We used PLINK v1.90b6.27 64-bit (10 Dec 2022).
+1. Download PLINK to the main `drab` folder. We used PLINK v1.90b6.27 64-bit (10 Dec 2022).
 ```
 wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20221210.zip
 unzip plink_linux_x86_64_20221210.zip plink
 rm plink_linux_x86_64_20221210.zip
 ```
-* The files `src/run_drab.sh` and `util/prepare_data.sh` are shell scripts prefaced by SLURM commands. Modify the `#SBATCH` commands at the beginning of both SLURM scripts as appropriate for your compute cluster. In particular, be sure to set the `--partition` flag to the list of SLURM partitions on your cluster and the `--mail-user` flag to your own email address. The remaining commands may be left at their defaults.
+1. The files `src/run_drab.sh` and `util/prepare_data.sh` are shell scripts prefaced by SLURM commands. If you intend to run DRAB through SLURM, modify the `#SBATCH` commands at the beginning of each script as appropriate for your compute cluster. Otherwise, if you will run DRAB without a job scheduling system, delete (or comment out) the `module load R/4.1.0` line near the top of the script and uncomment the two lines below it.
 
 ## Input data formats
 
@@ -60,8 +65,6 @@ FID	IID	ENSG00000117228.9	ENSG00000162645.12	ENSG00000117226.11
 ```
 Use the naming convention `<context>.expression.txt` and save all of the gene expression files in `drab/expression`.
 
-**Note:** The FIDs and IIDs must be consistent with those used for the genotype data, while the gene IDs in the header line must be consistent with those used in the gene annotation file(s).
-
 ### Expression covariates
 
 The format for expression covariates is analogous to the format for gene expression described above. Covariates should be in context-specific, plain-text, tab-delimited files that begin with a header line. Each line after the header should contain information for a single individual with family ID in the first field, within-family ID in the second field, and covariates in the remaining fields. For example, the first three lines might be
@@ -72,17 +75,32 @@ FID	IID	PC1	PC2	InferredCov	pcr
 ```
 Use the naming convention `<context>.covariates.txt` and save all of the covariate files in `drab/covariates`.
 
-**Note:** The FIDs and IIDs must be consistent with those used in the gene expression files.
+## Example usage
 
-## Running DRAB
+The shell script `run_drab.sh` runs the program. It requires five arguments in the form of environment variables, which are described in the table below:
 
-To run DRAB, submit the `src/run_drab.sh` shell script as a SLURM job with `CONTEXT_A`, `CONTEXT_B`, `GENES`, and `BOOT` as exported variables. For example, to test whether the expression of genes listed in the annotation file `all_genes.txt` is differentially regulated in tissues labeled as `Whole_Blood` and `Brain_Cortex` using 50 bootstrap iterations, run the command
+| variable | type | description | example |
+|-|-|-|-|
+| CONTEXT_A | string | prefix of gene expression filename for the first tissue/context | "Whole_Blood" |
+| CONTEXT_B | string | prefix of gene expression filename for the second tissue/context | "Brain_Cortex" |
+| GENES | string | basename of gene annotation file | "all_genes" |
+| BOOT | integer | number of bootstrap iterations to use | 50 |
+| DRAB | string | path to DRAB installation directory | "~/drab" |
+
+Using the example values, the full command to run DRAB through SLURM from within the DRAB installation directory would be
 ```
 sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="all_genes",BOOT="50",DRAB=$(pwd) src/run_drab.sh
 ```
-In practice, replace `Whole_Blood` and `Brain_Cortex` with the names of your desired tissues/contexts and `all_genes` with the name of your annotation file. The variable `BOOT` determines the number of bootstrap iterations to perform. Although we have found that as few as 10 bootstrap iterations will give reasonable results, we recommend using more iterations (e.g. 50) if computationally feasible.
 
-The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (Here `Whole_Blood`, `Brain_Cortex`, and `all_genes` will be replaced with the tissue/context names and annotation file name you specified when running DRAB.) This is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
+To run DRAB without submitting a SLURM job, the commands would instead be
+```
+export CONTEXT_A="Whole_Blood" CONTEXT_B="Brain_Cortex" GENES="all_genes" BOOT="50" DRAB=$(pwd)
+./src/run_drab.sh
+```
+
+## Output format
+
+The results will be saved to `output/<CONTEXT_A>-<CONTEXT_B>-<GENES>.txt`. (For the example above, this would be `output/Whole_Blood-Brain_Cortex-all_genes.txt`.) The output file is a tab-delimited, plain-text file without a header line. Each line contains information for a single gene, with the following fields:
 
 1. Gene name
 2. Gene ID
@@ -91,13 +109,11 @@ The results will be saved to `output/Whole_Blood-Brain_Cortex-all_genes.txt`. (H
 5. Number of individuals in each training set
 6. Number of individuals in the testing set
 
-If the DRAB P-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two contexts.
+If the DRAB test P-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two contexts. Note that the reported P-values are from single-gene tests, so a multiple testing correction may be necessary.
 
-**Note:** DRAB does not account for multiple testing. When drawing conclusions on a set of genes, a multiple testing correction such as the Benjamini-Hochberg method should be used.
+# Appendix: download and prepare GTEx data
 
-## Appendix: download and prepare GTEx data
-
-This appendix describes how to obtain and prepare the data used in our paper "Identifying genes with tissue-specific patterns of genetic regulation."
+This appendix describes how to obtain and prepare the data used in our paper.
 
 First, create the folder `drab/raw` to store the unprocessed GTEx data sets. This folder may be safely deleted after completing all of the steps in this appendix.
 
