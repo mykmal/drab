@@ -17,7 +17,7 @@ unzip main.zip && mv drab-main drab && rm main.zip
 cd drab
 mkdir annotations covariates expression genotypes logs output
 ```
-2. Install the R packages BEDMatrix and glmnet. We used R version 4.2.2 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
+2. Install the R packages BEDMatrix and glmnet. We used R 4.2.2 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
 ```
 Rscript -e 'install.packages(c("BEDMatrix", "glmnet"), repos="http://cran.us.r-project.org")'
 ```
