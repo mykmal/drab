@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please star the repository and cite the following paper."
+authors:
+- family-names: "Malakhov"
+  given-names: "Mykhaylo"
+  name-particle: "M."
+  orcid: "https://orcid.org/0000-0002-6856-3913"
+title: "DRAB"
+url: "https://github.com/MykMal/drab"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Malakhov"
+    given-names: "Mykhaylo"
+    name-particle: "M."
+    orcid: "https://orcid.org/0000-0002-6856-3913"
+  - family-names: "Dai"
+    given-names: "Ben"
+    orcid: "https://orcid.org/0000-0002-1620-1021"
+  - family-names: "Shen"
+    given-names: "Xiaotong"
+    name-particle: "T."
+    orcid: "https://orcid.org/0000-0003-1300-1451"
+  - family-names: "Pan"
+    given-names: "Wei"
+    orcid: "https://orcid.org/0000-0002-1159-0582"
+  title: "A bootstrap model comparison test for identifying genes with context-specific patterns of genetic regulation"
+  journal: "bioRxiv"
+  publisher: "Cold Spring Harbor Laboratory"
+  year: 2023
+  month: 3
+  doi: "10.1101/2023.03.06.531446"
+  url: "https://www.biorxiv.org/content/10.1101/2023.03.06.531446"
