@@ -4,6 +4,23 @@ DRAB (Differential Regulation Analysis by Bootstrapping) is a tool for identifyi
 
 DRAB can be applied to any functional/molecular phenotypes that have a genetic component, including mRNA expression and isoform expression levels.
 
+## Citation
+
+If you use this software, please star the repository and cite the following paper:
+
+```bibtex
+@article{malakhov_drab_2023,
+     author = {Malakhov, Mykhaylo M. and Dai, Ben and Shen, Xiaotong T. and Pan, Wei},
+     title = {A bootstrap model comparison test for identifying genes with context-specific patterns of genetic regulation},
+     journal = {bioRxiv},
+     publisher = {Cold Spring Harbor Laboratory},
+     year = {2023},
+     month = {03},
+     doi = {10.1101/2023.03.06.531446},
+     url = {https://www.biorxiv.org/content/10.1101/2023.03.06.531446}
+}
+```
+
 # Running DRAB
 
 DRAB is primarily intended to be used on a Linux cluster through SLURM, but it can also be run as a shell script from any bash session.
