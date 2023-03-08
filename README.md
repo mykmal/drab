@@ -1,12 +1,12 @@
 # Overview of DRAB
 
-DRAB (Differential Regulation Analysis by Bootstrapping) is a tool for identifying genes with context-specific (e.g. tissue-specific) patterns of local genetic regulation. DRAB first leverages elastic net regression to learn the effects of genetic variation on gene expression in each context, and then applies a bootstrap model comparison test to determine whether the context-specific models are equivalent. Notably, our approach is able to test population-level models by accounting for the variability of feature selection and model training.
+DRAB (Differential Regulation Analysis by Bootstrapping) is a tool for identifying genes with context-specific (e.g. tissue-specific) patterns of local genetic regulation.
 
-DRAB can be applied to any functional/molecular phenotypes that have a genetic component, including mRNA expression and isoform expression levels.
+DRAB first leverages elastic net regression to learn the effects of genetic variation on gene expression in each context, and then applies a bootstrap model comparison test to determine whether the context-specific models are equivalent. Notably, our approach is able to test population-level models by accounting for the variability of feature selection and model training. DRAB can be applied to any functional/molecular phenotypes that have a genetic component, such as mRNA expression levels.
 
 ## Citation
 
-If you use this software, please star the repository and cite the following paper:
+If you use this software, please star the repository and cite the following preprint:
 
 ```bibtex
 @article{malakhov_drab_2023,
@@ -15,7 +15,6 @@ If you use this software, please star the repository and cite the following pape
      journal = {bioRxiv},
      publisher = {Cold Spring Harbor Laboratory},
      year = {2023},
-     month = {03},
      doi = {10.1101/2023.03.06.531446},
      url = {https://www.biorxiv.org/content/10.1101/2023.03.06.531446}
 }
@@ -28,18 +27,18 @@ DRAB is primarily intended to be used on a Linux cluster through SLURM, but it c
 ## Installation
 
 1. Download the DRAB software package and create the required folder structure.
-```
+```bash
 wget https://github.com/MykMal/drab/archive/refs/heads/main.zip
 unzip main.zip && mv drab-main drab && rm main.zip
 cd drab
 mkdir annotations covariates expression genotypes logs output
 ```
 2. Install the R packages BEDMatrix and glmnet. We used R 4.2.2 x86_64, BEDMatrix 2.0.3, and glmnet 4.1-6.
-```
+```bash
 Rscript -e 'install.packages(c("BEDMatrix", "glmnet"), repos="http://cran.us.r-project.org")'
 ```
 3. Download PLINK to the main `drab` folder. We used PLINK v1.90b7 64-bit (16 Jan 2023).
-```
+```bash
 wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20230116.zip
 unzip plink_linux_x86_64_20230116.zip plink
 rm plink_linux_x86_64_20230116.zip
@@ -70,7 +69,7 @@ Additional fields are allowed but will be ignored. Save your gene annotation fil
 
 ### Genotype data
 
-DRAB requires individual-level whole genome sequencing data in PLINK bed/bim/fam format. After performing all desired quality control, save your fully processed genotype data as `dosages.bed`, `dosages.bim`, and `dosages.fam` in `drab/genotypes`.
+DRAB requires individual-level whole-genome sequencing data in PLINK bed/bim/fam format. After performing all desired quality control, save your fully processed genotype data as `dosages.bed`, `dosages.bim`, and `dosages.fam` in `drab/genotypes`.
 
 ### Gene expression data
 
@@ -105,12 +104,12 @@ The shell script `run_drab.sh` runs the program. It requires five arguments in t
 | DRAB | string | path to DRAB installation directory | "~/drab" |
 
 Using the example values, the full command to run DRAB through SLURM from within the DRAB installation directory would be
-```
+```bash
 sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="all_genes",BOOT="50",DRAB=$(pwd) src/run_drab.sh
 ```
 
 To run DRAB without submitting a SLURM job, the commands would instead be
-```
+```bash
 export CONTEXT_A="Whole_Blood" CONTEXT_B="Brain_Cortex" GENES="all_genes" BOOT="50" DRAB=$(pwd)
 ./src/run_drab.sh
 ```
@@ -141,7 +140,7 @@ Extract the folders `expression_matrices` and `expression_covariates` from the t
 * `gencode.v26.GRCh38.genes.gtf` (under the heading "Reference")  
 Move this file to `drab/raw`.
 
-After obtaining access to the GTEx data in [dbGaP](https://www.ncbi.nlm.nih.gov/gap/) (accession phs000424.v8.p2), follow the dbGaP documentation to download the following files:
+After obtaining access to the GTEx data in [dbGaP](https://www.ncbi.nlm.nih.gov/gap/) (accession number phs000424.v8.p2), follow the dbGaP documentation to download the following files:
 
 * `phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar`  
 Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz` from the tar and move it to `drab/raw`. (The other files in the archive are not needed.)
@@ -149,7 +148,7 @@ Extract the file `GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_F
 Move this file to `drab/raw`.
 
 To prepare the GTEx data for use with DRAB, from your main `drab` folder run
-```
+```bash
 sbatch --export=DRAB=$(pwd) util/prepare_data.sh
 ```
 This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the expression matrices and expression covariates.
