@@ -127,7 +127,7 @@ The results will be saved to `output/<CONTEXT_A>-<CONTEXT_B>-<GENES>.txt`. (For 
 
 If the DRAB test P-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two contexts. Note that the reported P-values are from single-gene tests, so a multiple testing correction may be necessary.
 
-# Appendix: download and prepare GTEx data
+# Appendix A: download and prepare GTEx data
 
 This appendix describes how to obtain and prepare the data used in our paper.
 
@@ -152,4 +152,20 @@ To prepare the GTEx data for use with DRAB, from your main `drab` folder run
 sbatch --export=DRAB=$(pwd) util/prepare_data.sh
 ```
 This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the expression matrices and expression covariates.
+
+# Appendix B: simulate gene expression data
+
+This appendix describes how to simulate context-specific gene expression data using real genotype data, as done for the simulation studies described in our paper.
+
+1. Create the required folder structure:
+```bash
+mkdir saved_models expression_simulated
+```
+1. Save an annotation file with the genes for which you wish to simulate gene expression levels, as described under `Input data formats` above.
+1. Run the `simulations/simulate_expression.sh` shell script. This will train context-specific transcriptome imputation models, extract their weights, and then use those weights to simulate context-specific gene expression levels for all genotyped individuals. The required parameters for this script are the same as for `src/run_drab.sh`, except that the `BOOT` variable is not needed since no bootstrapping is performed. Below is an example run:
+```bash
+sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Muscle_Skeletal",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
+```
+
+The simulated expresion values for context A and context B will be saved to `expression_simulated/expression_simulated/${CONTEXT_A}_${GENES}.txt` and `expression_simulated/${CONTEXT_B}_${GENES}.txt`, respectively. These files can then be used as input to DRAB.
 
