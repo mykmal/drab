@@ -161,11 +161,11 @@ This appendix describes how to simulate context-specific gene expression data us
 ```bash
 mkdir saved_models expression_simulated
 ```
-1. Save an annotation file with the genes for which you wish to simulate gene expression levels, as described under `Input data formats` above.
-1. Run the `simulations/simulate_expression.sh` shell script. This will train context-specific transcriptome imputation models, extract their weights, and then use those weights to simulate context-specific gene expression levels for all genotyped individuals. The required parameters for this script are the same as for `src/run_drab.sh`, except that the `BOOT` variable is not needed since no bootstrapping is performed. Below is an example run:
+2. Save an annotation file with the genes for which you wish to simulate gene expression levels, as described under the "Input data formats" section above.
+3. Run the `simulations/simulate_expression.sh` shell script. This will train context-specific transcriptome imputation models, extract their weights, and then use those weights to simulate context-specific gene expression levels for all genotyped individuals. The required parameters for this script are the same as for `src/run_drab.sh`, except that the `BOOT` variable is not needed since no bootstrapping is performed. Below is an example run:
 ```bash
-sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Muscle_Skeletal",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
+sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Nerve_Tibial",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
 ```
 
-The simulated expresion values for context A and context B will be saved to `expression_simulated/expression_simulated/${CONTEXT_A}_${GENES}.txt` and `expression_simulated/${CONTEXT_B}_${GENES}.txt`, respectively. These files can then be used as input to DRAB.
+The simulated gene expression values for context A and context B will be saved to `expression_simulated/expression_simulated/${CONTEXT_A}_${GENES}.txt` and `expression_simulated/${CONTEXT_B}_${GENES}.txt`, respectively. These files can then be used as input to DRAB.
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --mem=64g
-#SBATCH --time=2:00:00
+#SBATCH --mem=256g
+#SBATCH --time=5:00:00
 #SBATCH --tmp=10g
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
@@ -75,6 +75,7 @@ END=$(( ${END} + 500000 ))
 
 if ( [ ! -f ${SLURM_JOB_ID}/${NAME}/A.genotypes.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/B.genotypes.bed ] ); then
 printf "Unable to extract genotype data for ${ID}. Skipping gene.\n"
+printf "Unable to extract genotype data for ${ID}. Skipping gene.\n"
 rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
@@ -85,8 +86,8 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 
 done < annotations/${GENES}.txt
 
-awk '{a[$1]=($1 in a ? a[$1] OFS : "") $2}END {for(i in a) print i, a[i]}' ${SLURM_JOB_ID}/A_*_expression.simulated.txt > expression_simulated/${CONTEXT_A}_${GENES}.txt
-awk '{b[$1]=($1 in b ? b[$1] OFS : "") $2}END {for(i in b) print i, b[i]}' ${SLURM_JOB_ID}/B_*_expression.simulated.txt > expression_simulated/${CONTEXT_B}_${GENES}.txt
+awk '{a[$1]=($1 in a ? a[$1] OFS : "") $2}END {for(i in a) print i, a[i]}' ${SLURM_JOB_ID}/A_?_expression.simulated.txt > expression_simulated/${CONTEXT_A}_${GENES}.txt
+awk '{b[$1]=($1 in b ? b[$1] OFS : "") $2}END {for(i in b) print i, b[i]}' ${SLURM_JOB_ID}/B_?_expression.simulated.txt > expression_simulated/${CONTEXT_B}_${GENES}.txt
 
 rm -rf ${SLURM_JOB_ID}
 

@@ -77,7 +77,7 @@ CovarAdjust <- function(plink_path, covar_path)
   genotypes <- as.data.frame((scale(genotypes) / sqrt(n - 1)) * sqrt(n))
   genotypes <- RemoveSuperfluous(genotypes)
   
-  return(list(genotypes = genotypes, expression = expression, covariates = covars))
+  return(list(genotypes = genotypes, expression = expression))
 }
 
 # Train a transcriptome imputation model, saving its weights and returning the model object
@@ -123,33 +123,13 @@ n <- nrow(full_genotypes)
 full_genotypes <- as.data.frame((scale(full_genotypes) / sqrt(n - 1)) * sqrt(n))
 full_genotypes <- RemoveSuperfluous(full_genotypes)
 
-# Adjust for context-specific covariates
-covars_A <- data_train_A$covariates
-covars_B <- data_train_B$covariates
-full_genotypes_adjA <- full_genotypes
-full_genotypes_adjB <- full_genotypes
-for (snp in colnames(full_genotypes)) {
-  adjust_genotypes_formula_A <- reformulate(paste0("covars_A$", colnames(covars_A)), response = paste0("full_genotypes$", snp))
-  adjust_genotypes_formula_B <- reformulate(paste0("covars_B$", colnames(covars_B)), response = paste0("full_genotypes$", snp))
-  full_genotypes_adjA[[snp]] <- resid(lm(adjust_genotypes_formula_A))
-  full_genotypes_adjB[[snp]] <- resid(lm(adjust_genotypes_formula_B))
-}
-
-# Normalize and remove monomorphics again
-full_genotypes_adjA <- as.data.frame((scale(full_genotypes_adjA) / sqrt(n - 1)) * sqrt(n))
-full_genotypes_adjB <- as.data.frame((scale(full_genotypes_adjB) / sqrt(n - 1)) * sqrt(n))
-full_genotypes_adjA <- RemoveSuperfluous(full_genotypes_adjA)
-full_genotypes_adjB <- RemoveSuperfluous(full_genotypes_adjB)
-
 # Subset to a common set of SNPs (in case any were removed after covariate adjustment)
 all_snps <- Reduce(intersect, list(colnames(data_train_A$genotypes),
                                    colnames(data_train_B$genotypes),
-                                   colnames(full_genotypes_adjA),
-                                   colnames(full_genotypes_adjB)))
+                                   colnames(full_genotypes)))
 data_train_A$genotypes <- subset(data_train_A$genotypes, select = all_snps)
 data_train_B$genotypes <- subset(data_train_B$genotypes, select = all_snps)
-full_genotypes_adjA <- subset(full_genotypes_adjA, select = all_snps)
-full_genotypes_adjB <- subset(full_genotypes_adjB, select = all_snps)
+full_genotypes <- subset(full_genotypes, select = all_snps)
 
 # Train and save context-specific models using all available data for each context
 trained_model_A <- TrainSave(data_train_A$genotypes, data_train_A$expression$value)
@@ -157,11 +137,11 @@ trained_model_B <- TrainSave(data_train_B$genotypes, data_train_B$expression$val
 
 # Using weights from each of the trained models, simulate expression data for all GTEx samples
 expression_imputed_A <- glmnet::predict(trained_model_A,
-                                        newx = full_genotypes_adjA,
+                                        newx = full_genotypes,
                                         s = "lambda.1se",
                                         type = "response")
 expression_imputed_B <- glmnet::predict(trained_model_B,
-                                        newx = full_genotypes_adjB,
+                                        newx = full_genotypes,
                                         s = "lambda.1se",
                                         type = "response")
 
