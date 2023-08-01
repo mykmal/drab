@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --mem=256g
-#SBATCH --time=5:00:00
+#SBATCH --time=20:00:00
 #SBATCH --tmp=10g
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL

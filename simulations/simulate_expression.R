@@ -84,7 +84,7 @@ CovarAdjust <- function(plink_path, covar_path)
 TrainSave <- function(training_genotypes, training_expression)
 {
   # Fit an elastic net regression model on the training data
-  model <- glmnet::cv.glmnet(x = as.matrix(training_genotypes), y = as.matrix(training_expression),
+  model <- cv.glmnet(x = as.matrix(training_genotypes), y = as.matrix(training_expression),
                                   family = "gaussian", alpha = 0.5, nfolds = 5, type.measure = "mse", standardize = FALSE)
   
   # Extract the fitted model weights
@@ -102,6 +102,8 @@ TrainSave <- function(training_genotypes, training_expression)
 ######################################################################
 # MAIN PROGRAM
 ######################################################################
+
+library(glmnet)
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -136,14 +138,14 @@ trained_model_A <- TrainSave(data_train_A$genotypes, data_train_A$expression$val
 trained_model_B <- TrainSave(data_train_B$genotypes, data_train_B$expression$value)
 
 # Using weights from each of the trained models, simulate expression data for all GTEx samples
-expression_imputed_A <- glmnet::predict(trained_model_A,
-                                        newx = full_genotypes,
-                                        s = "lambda.1se",
-                                        type = "response")
-expression_imputed_B <- glmnet::predict(trained_model_B,
-                                        newx = full_genotypes,
-                                        s = "lambda.1se",
-                                        type = "response")
+expression_imputed_A <- predict(trained_model_A,
+                                newx = full_genotypes,
+                                s = "lambda.1se",
+                                type = "response")
+expression_imputed_B <- predict(trained_model_B,
+                                newx = full_genotypes,
+                                s = "lambda.1se",
+                                type = "response")
 
 # Save the simulated expression values
 write.table(expression_imputed_A, file = paste0(job, "/A_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
