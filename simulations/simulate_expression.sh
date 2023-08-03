@@ -86,8 +86,5 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 
 done < annotations/${GENES}.txt
 
-awk '{a[$1]=($1 in a ? a[$1] OFS : "") $2}END {for(i in a) print i, a[i]}' ${SLURM_JOB_ID}/A_?_expression.simulated.txt > expression_simulated/${CONTEXT_A}_${GENES}.txt
-awk '{b[$1]=($1 in b ? b[$1] OFS : "") $2}END {for(i in b) print i, b[i]}' ${SLURM_JOB_ID}/B_?_expression.simulated.txt > expression_simulated/${CONTEXT_B}_${GENES}.txt
-
 rm -rf ${SLURM_JOB_ID}
 

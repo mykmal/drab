@@ -81,7 +81,7 @@ CovarAdjust <- function(plink_path, covar_path)
 }
 
 # Train a transcriptome imputation model, saving its weights and returning the model object
-TrainSave <- function(training_genotypes, training_expression)
+TrainSave <- function(training_genotypes, training_expression, context)
 {
   # Fit an elastic net regression model on the training data
   model <- cv.glmnet(x = as.matrix(training_genotypes), y = as.matrix(training_expression),
@@ -92,7 +92,7 @@ TrainSave <- function(training_genotypes, training_expression)
   colnames(wgt_matrix) <- "weight"
   
   # Save the model weights
-  write.table(wgt_matrix, file = paste0("saved_models/", context_A, "_", name, "_", id, ".weights"),
+  write.table(wgt_matrix, file = paste0("saved_models/", context, "_", name, "_", id, ".weights"),
                                   sep = "\t", quote = FALSE)
   
   return(model)
@@ -132,10 +132,11 @@ all_snps <- Reduce(intersect, list(colnames(data_train_A$genotypes),
 data_train_A$genotypes <- subset(data_train_A$genotypes, select = all_snps)
 data_train_B$genotypes <- subset(data_train_B$genotypes, select = all_snps)
 full_genotypes <- subset(full_genotypes, select = all_snps)
+full_genotypes <- as.matrix(full_genotypes)
 
 # Train and save context-specific models using all available data for each context
-trained_model_A <- TrainSave(data_train_A$genotypes, data_train_A$expression$value)
-trained_model_B <- TrainSave(data_train_B$genotypes, data_train_B$expression$value)
+trained_model_A <- TrainSave(data_train_A$genotypes, data_train_A$expression$value, context_A)
+trained_model_B <- TrainSave(data_train_B$genotypes, data_train_B$expression$value, context_B)
 
 # Using weights from each of the trained models, simulate expression data for all GTEx samples
 expression_imputed_A <- predict(trained_model_A,
@@ -148,6 +149,6 @@ expression_imputed_B <- predict(trained_model_B,
                                 type = "response")
 
 # Save the simulated expression values
-write.table(expression_imputed_A, file = paste0(job, "/A_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
-write.table(expression_imputed_B, file = paste0(job, "/B_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
+write.table(expression_imputed_A, file = paste0("expression_simulated/", context_A, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
+write.table(expression_imputed_B, file = paste0("expression_simulated/", context_B, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
 

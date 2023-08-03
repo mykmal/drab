@@ -167,5 +167,5 @@ mkdir saved_models expression_simulated
 sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Nerve_Tibial",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
 ```
 
-The simulated gene expression values for context A and context B will be saved to `expression_simulated/expression_simulated/${CONTEXT_A}_${GENES}.txt` and `expression_simulated/${CONTEXT_B}_${GENES}.txt`, respectively. These files can then be used as input to DRAB.
+The simulated context-specific expression values for each gene will be saved to `expression_simulated/<CONTEXT>_<GENE ID>_expression.simulated.txt`. These files can then be used as input to DRAB.
 
