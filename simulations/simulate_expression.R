@@ -39,7 +39,7 @@ RemoveSuperfluous <- function(x)
   return(x)
 }
 
-# Load expression and genotype data, adjust for covariates, and normalize
+# Load expression and genotype data, normalize both, and adjust expression for covariates
 CovarAdjust <- function(plink_path, covar_path)
 {
   # Load genotype and expression data
@@ -65,16 +65,6 @@ CovarAdjust <- function(plink_path, covar_path)
   expression <- as.data.frame((scale(expression) / sqrt(n - 1)) * sqrt(n))
   
   # Remove monomorphic SNPs
-  genotypes <- RemoveSuperfluous(genotypes)
-  
-  # Adjust normalized genotypes for covariates
-  for (snp in colnames(genotypes)) {
-    adjust_genotypes_formula <- reformulate(paste("covars$", colnames(covars), sep = ""), response = paste("genotypes$", snp, sep = ""))
-    genotypes[[snp]] <- resid(lm(adjust_genotypes_formula))
-  }
-  
-  # Normalize and remove monomorphics again
-  genotypes <- as.data.frame((scale(genotypes) / sqrt(n - 1)) * sqrt(n))
   genotypes <- RemoveSuperfluous(genotypes)
   
   return(list(genotypes = genotypes, expression = expression))
@@ -103,7 +93,7 @@ TrainSave <- function(training_genotypes, training_expression, context)
 # MAIN PROGRAM
 ######################################################################
 
-library(glmnet)
+suppressMessages(library(glmnet))
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -113,19 +103,19 @@ context_B <- args[3]
 name <- args[4]
 id <- args[5]
 
-# Import context-specific data and adjust for covariates
+# Import context-specific data and adjust expression for covariates
 data_train_A <- CovarAdjust(paste0(job, "/", name, "/A.genotypes"), paste0("covariates/", context_A, ".covariates.txt"))
 data_train_B <- CovarAdjust(paste0(job, "/", name, "/B.genotypes"), paste0("covariates/", context_B, ".covariates.txt"))
 
 # Load genotype data for all samples
-full_genotypes <- ReadPlink("genotypes/dosages")$genotypes
+full_genotypes <- ReadPlink(paste0(job, "/", name, "/full.genotypes"))$genotypes
 
 # Scale using the 1/n variance formula and remove monomorphic SNPs
 n <- nrow(full_genotypes)
 full_genotypes <- as.data.frame((scale(full_genotypes) / sqrt(n - 1)) * sqrt(n))
 full_genotypes <- RemoveSuperfluous(full_genotypes)
 
-# Subset to a common set of SNPs (in case any were removed after covariate adjustment)
+# Subset to a common set of SNPs
 all_snps <- Reduce(intersect, list(colnames(data_train_A$genotypes),
                                    colnames(data_train_B$genotypes),
                                    colnames(full_genotypes)))
@@ -138,17 +128,32 @@ full_genotypes <- as.matrix(full_genotypes)
 trained_model_A <- TrainSave(data_train_A$genotypes, data_train_A$expression$value, context_A)
 trained_model_B <- TrainSave(data_train_B$genotypes, data_train_B$expression$value, context_B)
 
+# Estimate the amount of variance unexplained by genetics
+prediction_A <- predict(trained_model_A,
+                        newx = as.matrix(data_train_A$genotypes),
+                        s = "lambda.1se",
+                        type = "response")
+unexplained_sd_A <- sd(data_train_A$expression$value - prediction_A[, 1])
+
+prediction_B <- predict(trained_model_B,
+                        newx = as.matrix(data_train_B$genotypes),
+                        s = "lambda.1se",
+                        type = "response")
+unexplained_sd_B <- sd(data_train_B$expression$value - prediction_B[, 1])
+
 # Using weights from each of the trained models, simulate expression data for all GTEx samples
 expression_imputed_A <- predict(trained_model_A,
                                 newx = full_genotypes,
                                 s = "lambda.1se",
                                 type = "response")
+expression_imputed_A <- expression_imputed_A + rnorm(length(expression_imputed_A), mean = 0, sd = unexplained_sd_A)
 expression_imputed_B <- predict(trained_model_B,
                                 newx = full_genotypes,
                                 s = "lambda.1se",
                                 type = "response")
+expression_imputed_B <- expression_imputed_B + rnorm(length(expression_imputed_B), mean = 0, sd = unexplained_sd_B)
 
 # Save the simulated expression values
-write.table(expression_imputed_A, file = paste0("expression_simulated/", context_A, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
-write.table(expression_imputed_B, file = paste0("expression_simulated/", context_B, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
+write.table(expression_imputed_A, file = paste0("expression_simulated/", context_A, "_", name, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
+write.table(expression_imputed_B, file = paste0("expression_simulated/", context_B, "_", name, "_", id, "_expression.simulated.txt"), sep = "\t", quote = FALSE)
 

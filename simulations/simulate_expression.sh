@@ -1,13 +1,12 @@
 #!/bin/bash
 #SBATCH --ntasks=1
-#SBATCH --mem=256g
-#SBATCH --time=20:00:00
+#SBATCH --mem=64g
+#SBATCH --time=5:00:00
 #SBATCH --tmp=10g
 #SBATCH --partition=msismall,msilarge,msibigmem
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=malak039@umn.edu
 #SBATCH -o logs/%j.out
-#SBATCH -e logs/%j.err
 
 cd ${DRAB}
 
@@ -73,8 +72,16 @@ END=$(( ${END} + 500000 ))
           --make-bed \
           --out ${SLURM_JOB_ID}/${NAME}/B.genotypes
 
-if ( [ ! -f ${SLURM_JOB_ID}/${NAME}/A.genotypes.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/B.genotypes.bed ] ); then
-printf "Unable to extract genotype data for ${ID}. Skipping gene.\n"
+./plink --bfile genotypes/dosages \
+          --silent \
+          --allow-no-sex \
+          --chr ${CHR} \
+          --from-bp ${START} \
+          --to-bp ${END} \
+          --make-bed \
+          --out ${SLURM_JOB_ID}/${NAME}/full.genotypes
+
+if ( [ ! -f ${SLURM_JOB_ID}/${NAME}/A.genotypes.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/B.genotypes.bed ] || [ ! -f ${SLURM_JOB_ID}/${NAME}/full.genotypes.bed ] ); then
 printf "Unable to extract genotype data for ${ID}. Skipping gene.\n"
 rm -rf ${SLURM_JOB_ID}/${NAME}
 continue

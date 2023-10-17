@@ -1,19 +1,24 @@
 ---
 title: "Visualization of DRAB results"
 author: "Mykhaylo M. Malakhov"
-date: "2023-02-16"
+date: "2023-10-12"
 output: html_document
 ---
 
 [DRAB (Differential Regulation Analysis by Bootstrapping)](https://github.com/MykMal/drab) is a tool for identifying genes that exhibit significantly different patterns of local genetic regulation between two tissues or other biological contexts. This RMarkdown notebook contains useful scripts for visualizing the output of DRAB, which were used to create the figures in the main DRAB paper.
 
-## Function definitions
+# Real data results
+
+## Variable and function definitions
 
 ```{r}
 library(tidyverse)
 library(qqman)
 
 ci <- 0.95
+pairs <- c("Whole_Blood-Brain_Anterior_cingulate_cortex_BA24", "Whole_Blood-Brain_Cerebellum", "Whole_Blood-Brain_Cortex", "Whole_Blood-Brain_Frontal_Cortex_BA9", "Whole_Blood-Brain_Hippocampus", "Whole_Blood-Cells_EBV-transformed_lymphocytes", "Whole_Blood-Nerve_Tibial", "Brain_Cortex-Brain_Amygdala", "Brain_Cortex-Brain_Anterior_cingulate_cortex_BA24", "Brain_Cortex-Brain_Spinal_cord_cervical_c-1", "Brain_Cortex-Brain_Substantia_nigra", "Brain_Cortex-Cells_EBV-transformed_lymphocytes", "Brain_Cortex-Nerve_Tibial", "Adrenal_Gland-Thyroid", "Liver-Pancreas", "Lung-Artery_Aorta", "Muscle_Skeletal-Adipose_Subcutaneous", "Skin_Sun_Exposed_Lower_leg-Cells_Cultured_fibroblasts", "Small_Intestine_Terminal_Ileum-Colon_Sigmoid")
+abbreviated <- c("WHLBLD vs BRNACC", "WHLBLD vs BRNCHA", "WHLBLD vs BRNCTXA", "WHLBLD vs BRNCTXB", "WHLBLD vs BRNHPP", "WHLBLD vs LCL", "WHLBLD vs NERVET", "BRNCTXA vs BRNAMY", "BRNCTXA vs BRNACC", "BRNCTXA vs BRNSPC", "BRNCTXA vs BRNSNG", "BRNCTXA vs LCL", "BRNCTXA vs NERVET", "ADRNLG vs THYROID", "LIVER vs PNCREAS", "LUNG vs ARTAORT", "MSCLSK vs ADPSBQ", "SKINS vs FIBRBLS", "SNTTRM vs CLNSGM")
+
 annotations <- read.table("../annotations/protein_coding_genes.txt")
 
 # Save a tab-separated file of the results with column headings and gene position information
@@ -35,8 +40,8 @@ format <- function(tissue1, tissue2, title) {
   write.table(full_data, file = paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), quote = FALSE, row.names = FALSE, sep = "\t")
 }
 
-# Create a Q-Q plot of DRAB P-values
-# Inspired by https://danielroelfs.com/blog/how-i-make-qq-plots-using-ggplot/
+# Create a Q-Q plot with DRAB and conditional test P-values
+# Modified from https://danielroelfs.com/blog/how-i-make-qq-plots-using-ggplot/
 qqplot <- function(rawdata, p_column, pc_column, title, chr) {
   
   ngenes <- nrow(rawdata)
@@ -53,7 +58,7 @@ qqplot <- function(rawdata, p_column, pc_column, title, chr) {
     geom_ribbon(aes(ymax = cupper, ymin = clower), linetype = 0, fill = "#999999", alpha = 0.25) +
     geom_segment(data = . %>% filter(expected == max(expected)), 
                  aes(x = 0, xend = expected, y = 0, yend = expected),
-                 size = 1.25, alpha = 0.6, color = "#999999", lineend = "round") +
+                 linewidth = 1.25, alpha = 0.6, color = "#999999", lineend = "round") +
     geom_point(size = 2.5) +
     labs(x = expression(paste("Expected -log"[10],"(", plain(P),")")),
          y = expression(paste("Observed -log"[10],"(", plain(P),")")))
@@ -66,7 +71,35 @@ qqplot <- function(rawdata, p_column, pc_column, title, chr) {
   return(qq)
 }
 
-# Save a PNG image of the QQ plots for a given tissue pair and chromosome
+# Create a Q-Q plot of DRAB P-values
+# This version of the function only displays a plot for one set of P-values, rather than two
+# It also does not label the plot with a chromosome number
+qqplot2 <- function(rawdata, p_column, title) {
+  
+  ngenes <- nrow(rawdata)
+  plotdata <- data.frame(
+    observed = -log10(sort(rawdata[[p_column]])),
+    expected = -log10(ppoints(ngenes)),
+    clower = -log10(qbeta(p = (1 - ci) / 2, shape1 = seq(ngenes), shape2 = rev(seq(ngenes)))),
+    cupper = -log10(qbeta(p = (1 + ci) / 2, shape1 = seq(ngenes), shape2 = rev(seq(ngenes)))))
+  
+  qq <- ggplot(plotdata, aes(x = expected, y = observed)) +
+    geom_ribbon(aes(ymax = cupper, ymin = clower), linetype = 0, fill = "#999999", alpha = 0.25) +
+    geom_segment(data = . %>% filter(expected == max(expected)), 
+                 aes(x = 0, xend = expected, y = 0, yend = expected),
+                 linewidth = 1.25, alpha = 0.6, color = "#999999", lineend = "round") +
+    geom_point(size = 2.5, color = "#D55E00") +
+    labs(x = expression(paste("Expected -log"[10],"(", plain(P),")")),
+         y = expression(paste("Observed -log"[10],"(", plain(P),")")))
+  
+  qq <- qq + ggtitle(title) +
+    theme_bw(base_size = 18) +
+    guides(linetype = 0)
+  
+  return(qq)
+}
+
+# Save a PNG image of the QQ plot for a given tissue pair and chromosome
 qqprint <- function(data, chr, title) {
   
   data <- data[data$chr == chr, ]
@@ -77,7 +110,17 @@ qqprint <- function(data, chr, title) {
   dev.off()
 }
 
-# Save PNG images of the genome-wide Manhattan plots for a given tissue pair
+# Save a PNG image of the QQ plot for a given tissue pair
+# This version of the function includes all chromosomes and saves to a different folder
+qqprint2 <- function(data, title) {
+
+  png(filename = paste("../plots_supplementary/", gsub(" ", "_", title), "_QQ.png", sep = ""),
+      width = 3200, height = 1800, units = "px", res = 300)
+  print(qqplot2(data, "p", title))
+  dev.off()
+}
+
+# Save a PNG image of the transcriptome-wide Manhattan plot for a given tissue pair
 manprint <- function(data, title) {
 
   png(filename = paste("../plots/", gsub(" ", "_", title), "-man.png", sep = ""),
@@ -85,21 +128,12 @@ manprint <- function(data, title) {
   manhattan(data, snp = "gene", chr = "chr", bp = "start", p = "p", genomewideline = -log10((1 - ci) / nrow(data)),
             suggestiveline = FALSE, main = title, col = c("#E69F00", "#56B4E9"))
   dev.off()
-  
-  png(filename = paste("../plots/", gsub(" ", "_", title), "-man_conditional.png", sep = ""),
-      width = 3200, height = 1800, units = "px", res = 300)
-  manhattan(data, snp = "gene", chr = "chr", bp = "start", p = "p_c", genomewideline = -log10((1 - ci) / nrow(data)),
-            suggestiveline = FALSE, main = title, col = c("#E69F00", "#56B4E9"))
-  dev.off()
 }
 ```
 
-## Paper figures
+## Create the main text figures
 
 ```{r}
-pairs <- c("Whole_Blood-Brain_Anterior_cingulate_cortex_BA24", "Whole_Blood-Brain_Cerebellum", "Whole_Blood-Brain_Cortex", "Whole_Blood-Brain_Frontal_Cortex_BA9", "Whole_Blood-Brain_Hippocampus", "Whole_Blood-Cells_EBV-transformed_lymphocytes", "Whole_Blood-Nerve_Tibial", "Brain_Cortex-Brain_Amygdala", "Brain_Cortex-Brain_Anterior_cingulate_cortex_BA24", "Brain_Cortex-Brain_Spinal_cord_cervical_c-1", "Brain_Cortex-Brain_Substantia_nigra", "Brain_Cortex-Cells_EBV-transformed_lymphocytes", "Brain_Cortex-Nerve_Tibial", "Adrenal_Gland-Thyroid", "Liver-Pancreas", "Lung-Artery_Aorta", "Muscle_Skeletal-Adipose_Subcutaneous", "Skin_Sun_Exposed_Lower_leg-Cells_Cultured_fibroblasts", "Small_Intestine_Terminal_Ileum-Colon_Sigmoid")
-abbreviated <- c("WHLBLD vs BRNACC", "WHLBLD vs BRNCHA", "WHLBLD vs BRNCTXA", "WHLBLD vs BRNCTXB", "WHLBLD vs BRNHPP", "WHLBLD vs LCL", "WHLBLD vs NERVET", "BRNCTXA vs BRNAMY", "BRNCTXA vs BRNACC", "BRNCTXA vs BRNSPC", "BRNCTXA vs BRNSNG", "BRNCTXA vs LCL", "BRNCTXA vs NERVET", "ADRNLG vs THYROID", "LIVER vs PNCREAS", "LUNG vs ARTAORT", "MSCLSK vs ADPSBQ", "SKINS vs FIBRBLS", "SNTTRM vs CLNSGM")
-
 bars <- data.frame(
   count = integer(),
   lab = character())
@@ -115,7 +149,7 @@ for (i in 1:length(pairs)) {
   data <- read.table(paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), header = TRUE)
   
   # Replacing t-test NA's with 1 is fine because they only occur when the tests are not significant
-  # (You can check that the DRAB test p-value is 1 whenever the t-test p-value is NA)
+  # (You can check that the DRAB test P-value is 1 whenever the t-test P-value is NA)
   data$p_c[is.na(data$p_c)] <- 1
   
   manprint(data, title)
@@ -139,15 +173,171 @@ print(ggplot(data = bars, aes(x = lab, y = count, fill = lab)) +
 dev.off()
 
 # Whole blood vs Whole blood as a negative control
-
 tissue1 <- tissue2 <- "Whole_Blood"
 title <- "WHLBLD vs WHLBLD"
 
 format(tissue1, tissue2, title)
 data <- read.table(paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), header = TRUE)
 
-manprint(data, title)
 for (chr in 1:22) {
   qqprint(data, chr, title)
 }
 ```
+
+## Create the supplementary figures
+
+```{r}
+for (i in 1:length(pairs)) {
+  
+  pair <- str_split_fixed(pairs[i], "-", 2)
+  tissue1 <- pair[[1]]
+  tissue2 <- pair[[2]]
+  title <- abbreviated[i]
+  
+  data <- read.table(paste("../output_cleaned/", gsub(" ", "_", title), ".tsv", sep = ""), header = TRUE)
+  
+  qqprint2(data, title)
+}
+```
+
+# Simulated data results
+
+## Function definitions
+
+```{r}
+# Save a PNG image of the QQ plot for a given tissue pair
+# This version of the function automatically reads in data
+qqprint3 <- function(file_name, title) {
+  data <- read.table(paste0("../../Simulated_Results/output/", file_name, ".txt"), header = FALSE)
+  
+  png(filename = paste0("../../Simulated_Results/plots_supplementary/", file_name, "_QQ.png"),
+      width = 3200, height = 1800, units = "px", res = 300)
+  print(qqplot2(data, "V3", title))
+  dev.off()
+}
+
+# Save a scatter plot for comparing -log_10 (P) values between two sets of tests
+scatterprint <- function(file1, file2, axis1, axis2, title) {
+  data1 <- read.table(paste0("../../Simulated_Results/output/", file1, ".txt"), header = FALSE)
+  data2 <- read.table(paste0("../../Simulated_Results/output/", file2, ".txt"), header = FALSE)
+  
+  data <- as.data.frame(cbind(-log10(data1$V3), -log10(data2$V3)))
+  names(data) <- c("P1", "P2")
+  plot <- ggplot(data, aes(x = P1, y = P2)) +
+    geom_point(size = 2.5, color = "#D55E00") +
+    geom_abline(slope = 1, intercept = 0, linewidth = 1.25, alpha = 0.6, color = "#999999", lineend = "round") +
+    labs(title = paste0("WHLBLD vs BRNCTXA; ", title),
+         x = bquote(-log[10] * "(" * plain(P) * ")," ~ .(axis1)),
+         y = bquote(-log[10] * "(" * plain(P) * ")," ~ .(axis2)))
+  
+  plot <- plot +
+    theme_bw(base_size = 18) +
+    guides(linetype = 0)
+  
+  filename1 <- gsub("([.])\\1+", "\\1", make.names(axis1))
+  filename2 <- gsub("([.])\\1+", "\\1", make.names(axis2))
+  filename3 <- gsub("([.])\\1+", "\\1", make.names(title))
+  
+  png(filename = paste0("../../Simulated_Results/plots_supplementary/", filename1, "_", filename2, "_", filename3, "_scatter.png"),
+      width = 3200, height = 1800, units = "px", res = 300)
+  print(plot)
+  dev.off()
+}
+```
+
+## Type I error plots
+
+```{r}
+# Effect of sample overlap on type I error (null comparisons, trained on brain cortex)
+qqprint3("Brain_Cortex_training_0overlap_third-Brain_Cortex_training_0overlap_third_copy-Brain_Cortex_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 0%; Test: BRNCTXA")
+qqprint3("Brain_Cortex_training_0overlap_third-Brain_Cortex_training_0overlap_third_copy-Whole_Blood_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 0%; Test: WHLBLD")
+
+qqprint3("Brain_Cortex_training_25overlap_third-Brain_Cortex_training_25overlap_third_copy-Brain_Cortex_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 25%; Test: BRNCTXA")
+qqprint3("Brain_Cortex_training_25overlap_third-Brain_Cortex_training_25overlap_third_copy-Whole_Blood_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 25%; Test: WHLBLD")
+
+qqprint3("Brain_Cortex_training_50overlap_third-Brain_Cortex_training_50overlap_third_copy-Brain_Cortex_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 50%; Test: BRNCTXA")
+qqprint3("Brain_Cortex_training_50overlap_third-Brain_Cortex_training_50overlap_third_copy-Whole_Blood_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 50%; Test: WHLBLD")
+
+qqprint3("Brain_Cortex_training_75overlap_third-Brain_Cortex_training_75overlap_third_copy-Brain_Cortex_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 75%; Test: BRNCTXA")
+qqprint3("Brain_Cortex_training_75overlap_third-Brain_Cortex_training_75overlap_third_copy-Whole_Blood_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 75%; Test: WHLBLD")
+
+qqprint3("Brain_Cortex_training_100overlap_third-Brain_Cortex_training_100overlap_third_copy-Brain_Cortex_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 100%; Test: BRNCTXA")
+qqprint3("Brain_Cortex_training_100overlap_third-Brain_Cortex_training_100overlap_third_copy-Whole_Blood_testing_third", "BRNCTXA vs BRNCTXA; Overlap: 100%; Test: WHLBLD")
+
+# Effect of sample overlap on type I error (null comparisons, trained on whole blood)
+qqprint3("Whole_Blood_training_0overlap_third-Whole_Blood_training_0overlap_third_copy-Brain_Cortex_testing_third", "WHLBLD vs WHLBLD; Overlap: 0%; Test: BRNCTXA")
+qqprint3("Whole_Blood_training_0overlap_third-Whole_Blood_training_0overlap_third_copy-Whole_Blood_testing_third", "WHLBLD vs WHLBLD; Overlap: 0%; Test: WHLBLD")
+
+qqprint3("Whole_Blood_training_25overlap_third-Whole_Blood_training_25overlap_third_copy-Brain_Cortex_testing_third", "WHLBLD vs WHLBLD; Overlap: 25%; Test: BRNCTXA")
+qqprint3("Whole_Blood_training_25overlap_third-Whole_Blood_training_25overlap_third_copy-Whole_Blood_testing_third", "WHLBLD vs WHLBLD; Overlap: 25%; Test: WHLBLD")
+
+qqprint3("Whole_Blood_training_50overlap_third-Whole_Blood_training_50overlap_third_copy-Brain_Cortex_testing_third", "WHLBLD vs WHLBLD; Overlap: 50%; Test: BRNCTXA")
+qqprint3("Whole_Blood_training_50overlap_third-Whole_Blood_training_50overlap_third_copy-Whole_Blood_testing_third", "WHLBLD vs WHLBLD; Overlap: 50%; Test: WHLBLD")
+
+qqprint3("Whole_Blood_training_75overlap_third-Whole_Blood_training_75overlap_third_copy-Brain_Cortex_testing_third", "WHLBLD vs WHLBLD; Overlap: 75%; Test: BRNCTXA")
+qqprint3("Whole_Blood_training_75overlap_third-Whole_Blood_training_75overlap_third_copy-Whole_Blood_testing_third", "WHLBLD vs WHLBLD; Overlap: 75%; Test: WHLBLD")
+
+qqprint3("Whole_Blood_training_100overlap_third-Whole_Blood_training_100overlap_third_copy-Brain_Cortex_testing_third", "WHLBLD vs WHLBLD; Overlap: 100%; Test: BRNCTXA")
+qqprint3("Whole_Blood_training_100overlap_third-Whole_Blood_training_100overlap_third_copy-Whole_Blood_testing_third", "WHLBLD vs WHLBLD; Overlap: 100%; Test: WHLBLD")
+```
+
+## Statistical power plots
+
+```{r}
+# Effect of sample overlap on power (Whole Blood vs Brain Cortex, tested on Brain Cortex)
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_25overlap_third-Whole_Blood_training_25overlap_third-Brain_Cortex_testing_third", "0% overlap", "25% overlap", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_50overlap_third-Whole_Blood_training_50overlap_third-Brain_Cortex_testing_third", "0% overlap", "50% overlap", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_75overlap_third-Whole_Blood_training_75overlap_third-Brain_Cortex_testing_third", "0% overlap", "75% overlap", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_100overlap_third-Whole_Blood_training_100overlap_third-Brain_Cortex_testing_third", "0% overlap", "100% overlap", "Test tissue: BRNCTXA")
+
+# Effect of sample overlap on power (Whole Blood vs Brain Cortex, tested on Whole Blood)
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_25overlap_third-Whole_Blood_training_25overlap_third-Whole_Blood_testing_third", "0% overlap", "25% overlap", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_50overlap_third-Whole_Blood_training_50overlap_third-Whole_Blood_testing_third", "0% overlap", "50% overlap", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_75overlap_third-Whole_Blood_training_75overlap_third-Whole_Blood_testing_third", "0% overlap", "75% overlap", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_100overlap_third-Whole_Blood_training_100overlap_third-Whole_Blood_testing_third", "0% overlap", "100% overlap", "Test tissue: WHLBLD")
+
+# Effect of test set tissue choice on power
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "testing on BRNCTXA", "testing on WHLBLD", "0% training overlap")
+
+scatterprint("Brain_Cortex_training_25overlap_third-Whole_Blood_training_25overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_25overlap_third-Whole_Blood_training_25overlap_third-Whole_Blood_testing_third", "testing on BRNCTXA", "testing on WHLBLD", "25% training overlap")
+
+scatterprint("Brain_Cortex_training_50overlap_third-Whole_Blood_training_50overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_50overlap_third-Whole_Blood_training_50overlap_third-Whole_Blood_testing_third", "testing on BRNCTXA", "testing on WHLBLD", "50% training overlap")
+
+scatterprint("Brain_Cortex_training_75overlap_third-Whole_Blood_training_75overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_75overlap_third-Whole_Blood_training_75overlap_third-Whole_Blood_testing_third", "testing on BRNCTXA", "testing on WHLBLD", "75% training overlap")
+
+scatterprint("Brain_Cortex_training_100overlap_third-Whole_Blood_training_100overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_100overlap_third-Whole_Blood_training_100overlap_third-Whole_Blood_testing_third", "testing on BRNCTXA", "testing on WHLBLD", "100% training overlap")
+
+# Effect of test set sample size on power, with brain cortex as test tissue
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_179", "n_test = 239", "n_test = 179", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_120", "n_test = 239", "n_test = 120", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_60", "n_test = 239", "n_test = 60", "Test tissue: BRNCTXA")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Brain_Cortex_testing_30", "n_test = 239", "n_test = 30", "Test tissue: BRNCTXA")
+
+# Effect of test set sample size on power, with whole blood as test tissue
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_179", "n_test = 239", "n_test = 179", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_120", "n_test = 239", "n_test = 120", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_60", "n_test = 239", "n_test = 60", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_30", "n_test = 239", "n_test = 30", "Test tissue: WHLBLD")
+
+# Effect of training set sample size on power, with whole blood as test tissue
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_179-Whole_Blood_training_0overlap_179-Whole_Blood_testing_third", "n_train = 238", "n_train = 179", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_120-Whole_Blood_training_0overlap_120-Whole_Blood_testing_third", "n_train = 238", "n_train = 120", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_60-Whole_Blood_training_0overlap_60-Whole_Blood_testing_third", "n_train = 238", "n_train = 60", "Test tissue: WHLBLD")
+
+scatterprint("Brain_Cortex_training_0overlap_third-Whole_Blood_training_0overlap_third-Whole_Blood_testing_third", "Brain_Cortex_training_0overlap_30-Whole_Blood_training_0overlap_30-Whole_Blood_testing_third", "n_train = 238", "n_train = 30", "Test tissue: WHLBLD")
+```
+

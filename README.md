@@ -69,7 +69,7 @@ Additional fields are allowed but will be ignored. Save your gene annotation fil
 
 ### Genotype data
 
-DRAB requires individual-level whole-genome sequencing data in PLINK bed/bim/fam format. After performing all desired quality control, save your fully processed genotype data as `dosages.bed`, `dosages.bim`, and `dosages.fam` in `drab/genotypes`.
+DRAB requires individual-level genotype data in PLINK bed/bim/fam format (ideally derived from whole-genome sequencing). After performing all desired quality control, save your fully processed genotype data as `dosages.bed`, `dosages.bim`, and `dosages.fam` in `drab/genotypes`.
 
 ### Gene expression data
 
@@ -127,7 +127,18 @@ The results will be saved to `output/<CONTEXT_A>-<CONTEXT_B>-<GENES>.txt`. (For 
 
 If the DRAB test P-value (in field 3) for a given gene is sufficiently small, then we conclude that the genetic regulation of that gene's expression is significantly different between the two contexts. Note that the reported P-values are from single-gene tests, so a multiple testing correction may be necessary.
 
-# Appendix A: download and prepare GTEx data
+# Appendix A: run DRAB with custom data splits
+
+The main implementation of DRAB automatically splits the data you provide into a training set for context A (D_A), a training set for context B (D_B), and a test set (D_T). In some situations, however, it may be useful to manually define the sets D_A, D_B, and D_T. To facilitate such use cases, we provide the shell script `src/run_drab_manualsplit.sh`.
+
+To use DRAB with pre-defined training and test sets, first split your gene expression data and expression covariates into separate files for D_A, D_B, and D_T. The expression and covariate files for each set should have the same prefix, ending in ".expression.txt" and ".covariates.txt" respectively. These files can be saved anywhere, but the expression data and covariates for each set should stay within a single directory.
+
+For example, suppose you saved your expression data in the files "da_split.expression.txt", "db_split.expression.txt", and "dt_split.expression.txt" and your covariate data in the files "da_split.covariates.txt", "db_split.covariates.txt", and "dt_split.covariates.txt" all within a directory named "custom_splits". Then the command to run DRAB through SLURM using those pre-defined data splits would be
+```bash
+sbatch --export=DA_PATH="custom_splits/da_split",DB_PATH="custom_splits/db_split",DT_PATH="custom_splits/dt_split",GENES="all_genes",BOOT="50",DRAB=$(pwd) src/run_drab_manualsplit.sh
+```
+
+# Appendix B: download and prepare GTEx data
 
 This appendix describes how to obtain and prepare the data used in our paper.
 
@@ -153,7 +164,7 @@ sbatch --export=DRAB=$(pwd) util/prepare_data.sh
 ```
 This script will create an annotation file with all GTEx genes and another one with only protein-coding genes, perform standard quality control steps on the genotype data, and reformat the expression matrices and expression covariates.
 
-# Appendix B: simulate gene expression data
+# Appendix C: simulate gene expression data
 
 This appendix describes how to simulate context-specific gene expression data using real genotype data, as done for the simulation studies described in our paper.
 
@@ -164,7 +175,7 @@ mkdir saved_models expression_simulated
 2. Save an annotation file with the genes for which you wish to simulate gene expression levels, as described under the "Input data formats" section above.
 3. Run the `simulations/simulate_expression.sh` shell script. This will train context-specific transcriptome imputation models, extract their weights, and then use those weights to simulate context-specific gene expression levels for all genotyped individuals. The required parameters for this script are the same as for `src/run_drab.sh`, except that the `BOOT` variable is not needed since no bootstrapping is performed. Below is an example run:
 ```bash
-sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Nerve_Tibial",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
+sbatch --export=CONTEXT_A="Whole_Blood",CONTEXT_B="Brain_Cortex",GENES="simulated_genes",DRAB=$(pwd) simulations/simulate_expression.sh
 ```
 
 The simulated context-specific expression values for each gene will be saved to `expression_simulated/<CONTEXT>_<GENE ID>_expression.simulated.txt`. These files can then be used as input to DRAB.

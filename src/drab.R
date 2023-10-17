@@ -112,9 +112,9 @@ name <- args[6]
 id <- args[7]
 
 # Import data and adjust for covariates
-data_train_1 <- CovarAdjust(paste(job, "/", name, "/part1", sep = ""), paste(job, "/part1.covariates.txt", sep = ""))
-data_train_2 <- CovarAdjust(paste(job, "/", name, "/part2", sep = ""), paste(job, "/part2.covariates.txt", sep = ""))
-data_test <- CovarAdjust(paste(job, "/", name, "/part3", sep = ""), paste(job, "/part3.covariates.txt", sep = ""))
+data_train_1 <- CovarAdjust(paste(job, "/", name, "/da", sep = ""), paste(job, "/da.covariates.txt", sep = ""))
+data_train_2 <- CovarAdjust(paste(job, "/", name, "/db", sep = ""), paste(job, "/db.covariates.txt", sep = ""))
+data_test <- CovarAdjust(paste(job, "/", name, "/dt", sep = ""), paste(job, "/dt.covariates.txt", sep = ""))
 
 # Subset the three data sets to a common set of SNPs
 all_snps <- Reduce(intersect, list(colnames(data_train_1$genotypes), colnames(data_train_2$genotypes), colnames(data_test$genotypes)))

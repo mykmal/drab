@@ -19,46 +19,54 @@ module load R/4.2.2-openblas
 #exec 1> logs/${SLURM_JOB_ID}.out 2> logs/${SLURM_JOB_ID}.err
 
 printf "DRAB runtime parameters:\n"
-printf "CONTEXT_A = ${CONTEXT_A}\n"
-printf "CONTEXT_B = ${CONTEXT_B}\n"
+printf "D_A PATH = ${DA_PATH}\n"
+printf "D_B PATH = ${DB_PATH}\n"
+printf "D_T PATH = ${DT_PATH}\n"
 printf "GENES = ${GENES}\n"
 printf "BOOT = ${BOOT}\n\n"
 
 mkdir ${SLURM_JOB_ID}
 
-Rscript --vanilla src/split_data.R ${CONTEXT_A} ${CONTEXT_B} ${SLURM_JOB_ID}
+DA_EXPRESSION=$(basename "${DA_PATH}")
+DB_EXPRESSION=$(basename "${DB_PATH}")
+DT_EXPRESSION=$(basename "${DT_PATH}")
 
-DA_SIZE=$(wc -l < ${SLURM_JOB_ID}/da.expression.txt)
+DA_SIZE=$(wc -l < ${DA_PATH}.expression.txt)
 if (( ${DA_SIZE} < 10 )); then
-printf "Error: insufficient data. The training sample size for ${CONTEXT_A} is ${DA_SIZE}.\n"
+printf "Error: insufficient data. The training sample size for ${DA_EXPRESSION} is ${DA_SIZE}.\n"
 rm -rf ${SLURM_JOB_ID}
 exit 1
 fi
 
-DB_SIZE=$(wc -l < ${SLURM_JOB_ID}/db.expression.txt)
+DB_SIZE=$(wc -l < ${DB_PATH}.expression.txt)
 if (( ${DB_SIZE} < 10 )); then
-printf "Error: insufficient data. The training sample size for ${CONTEXT_B} is ${DB_SIZE}.\n"
+printf "Error: insufficient data. The training sample size for ${DB_EXPRESSION} is ${DB_SIZE}.\n"
 rm -rf ${SLURM_JOB_ID}
 exit 1
 fi
 
-DT_SIZE=$(wc -l < ${SLURM_JOB_ID}/dt.expression.txt)
+DT_SIZE=$(wc -l < ${DT_PATH}.expression.txt)
 if (( ${DT_SIZE} < 10 )); then
 printf "Error: insufficient data. The testing sample size is ${DT_SIZE}.\n"
 rm -rf ${SLURM_JOB_ID}
 exit 1
 fi
 
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/da.expression.txt > ${SLURM_JOB_ID}/da_individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/db.expression.txt > ${SLURM_JOB_ID}/db_individuals.txt
-awk 'NR > 1 {print $1 "\t" $2}' ${SLURM_JOB_ID}/dt.expression.txt > ${SLURM_JOB_ID}/dt_individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${DA_PATH}.expression.txt > ${SLURM_JOB_ID}/da_individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${DB_PATH}.expression.txt > ${SLURM_JOB_ID}/db_individuals.txt
+awk 'NR > 1 {print $1 "\t" $2}' ${DT_PATH}.expression.txt > ${SLURM_JOB_ID}/dt_individuals.txt
 
-read -r HEADER_A < expression/${CONTEXT_A}.expression.txt
-read -r HEADER_B < expression/${CONTEXT_B}.expression.txt
+read -r HEADER_A < ${DA_PATH}.expression.txt
+read -r HEADER_B < ${DB_PATH}.expression.txt
+read -r HEADER_T < ${DT_PATH}.expression.txt
+
+cp ${DA_PATH}.covariates.txt ${SLURM_JOB_ID}/da.covariates.txt
+cp ${DB_PATH}.covariates.txt ${SLURM_JOB_ID}/db.covariates.txt
+cp ${DT_PATH}.covariates.txt ${SLURM_JOB_ID}/dt.covariates.txt
 
 while read -r NAME ID CHR START END ETC; do
 
-if ( [[ ${HEADER_A} != *"${ID}"* ]] || [[ ${HEADER_B} != *"${ID}"* ]] ); then
+if ( [[ ${HEADER_A} != *"${ID}"* ]] || [[ ${HEADER_B} != *"${ID}"* ]] || [[ ${HEADER_T} != *"${ID}"* ]] ); then
 printf "WARNING: expression data not found for ${ID}. Skipping gene.\n"
 continue
 fi
@@ -80,7 +88,7 @@ END=$(( ${END} + 500000 ))
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/da.expression.txt \
+          --pheno ${DA_PATH}.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/da_individuals.txt \
           --make-bed \
@@ -92,7 +100,7 @@ END=$(( ${END} + 500000 ))
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/db.expression.txt \
+          --pheno ${DB_PATH}.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/db_individuals.txt \
           --make-bed \
@@ -104,7 +112,7 @@ END=$(( ${END} + 500000 ))
           --chr ${CHR} \
           --from-bp ${START} \
           --to-bp ${END} \
-          --pheno ${SLURM_JOB_ID}/dt.expression.txt \
+          --pheno ${DT_PATH}.expression.txt \
           --pheno-name ${ID} \
           --keep ${SLURM_JOB_ID}/dt_individuals.txt \
           --make-bed \
@@ -116,7 +124,7 @@ rm -rf ${SLURM_JOB_ID}/${NAME}
 continue
 fi
 
-Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${CONTEXT_A} ${CONTEXT_B} ${GENES} ${BOOT} ${NAME} ${ID}
+Rscript --vanilla src/drab.R ${SLURM_JOB_ID} ${DA_EXPRESSION} ${DB_EXPRESSION} ${DT_EXPRESSION} ${BOOT} ${NAME} ${ID}
 
 rm -rf ${SLURM_JOB_ID}/${NAME}
 
